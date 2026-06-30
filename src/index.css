@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background: #0c0a09;
+    color: #e7e5e4;
+    font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #root {
+    min-height: 100svh;
+    width: 100%;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #1c1917;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #57534e;
+    border-radius: 9999px;
+  }
+}
