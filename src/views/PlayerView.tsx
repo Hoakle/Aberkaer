@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { usePlayerSync } from '../hooks/useTableSync'
 import { useGMStore } from '../store/gmStore'
-import type { PlayerDisplay } from '../types'
+import { fmtMod } from '../game/rules'
+import type { PlayerDisplay, RollResult } from '../types'
 
 export default function PlayerView() {
   const storeDisplay = useGMStore((s) => s.display)
@@ -95,6 +96,23 @@ export default function PlayerView() {
         </div>
       )}
 
+      {/* Horloges de campagne (top right, under the connection dot) */}
+      {display.clocks?.length > 0 && (
+        <div className="absolute top-6 right-6 flex flex-col items-end gap-1.5">
+          {display.clocks.map((clock) => (
+            <div
+              key={clock.label}
+              className="bg-black/50 backdrop-blur-sm px-3 py-1 rounded border border-amber-900/40 text-amber-200/90 text-sm"
+            >
+              {clock.label} — <span className="font-semibold">J-{clock.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Jet de dés (animation centrale) */}
+      {display.lastRoll && <RollOverlay roll={display.lastRoll} />}
+
       {/* Overlay narrative text (bottom center) */}
       {display.showOverlay && display.overlayText && (
         <div className="absolute bottom-0 left-0 right-0 px-8 py-8 text-center">
@@ -153,6 +171,44 @@ function FadeImage({ url, onError }: { url: string; onError: () => void }) {
         visible ? 'opacity-100' : 'opacity-0'
       }`}
     />
+  )
+}
+
+const ROLL_STYLE: Record<RollResult['outcome'], { label: string; cls: string; ring: string }> = {
+  crit: { label: '✨ Critique !', cls: 'text-amber-300', ring: 'border-amber-500/70' },
+  fumble: { label: '💀 Échec critique !', cls: 'text-red-500', ring: 'border-red-700/70' },
+  success: { label: 'Réussite', cls: 'text-green-400', ring: 'border-green-700/70' },
+  failure: { label: 'Échec', cls: 'text-red-400', ring: 'border-red-800/70' },
+  open: { label: '', cls: 'text-stone-200', ring: 'border-stone-600/70' },
+}
+
+// Le jet du MJ apparaît au centre de l'écran quelques secondes puis s'efface.
+function RollOverlay({ roll }: { roll: RollResult }) {
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    setVisible(true)
+    const t = setTimeout(() => setVisible(false), 6000)
+    return () => clearTimeout(t)
+  }, [roll.id])
+
+  const style = ROLL_STYLE[roll.outcome]
+  return (
+    <div
+      className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-700 ${
+        visible ? 'opacity-100' : 'opacity-0'
+      }`}
+    >
+      <div
+        key={roll.id}
+        className={`animate-roll-pop bg-black/75 backdrop-blur-md border-2 ${style.ring} rounded-xl px-10 py-6 text-center`}
+      >
+        <p className="text-stone-400 text-sm mb-1">{roll.title}</p>
+        <p className="text-7xl font-bold text-stone-50 leading-none">{roll.total}</p>
+        <p className="text-stone-500 text-sm mt-2">d20 : {roll.die} {fmtMod(roll.bonus)}</p>
+        {style.label && <p className={`text-xl font-semibold mt-1 ${style.cls}`}>{style.label}</p>}
+      </div>
+    </div>
   )
 }
 

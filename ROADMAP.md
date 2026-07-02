@@ -15,7 +15,7 @@ et toutes les données de campagne vivent dans le dépôt, versionnées et sauve
 |-------|---------|--------|
 | 0 | Assainir les fondations (bugs B1, B3–B8, backups, serveur preview, README, tests) | ✅ Terminée |
 | 1 | Multi-écrans : sync serveur (SSE), QR code, transitions | ✅ Terminée |
-| 2 | Outils de jeu : fiches PJ, dés, magie/Fatigue, tracker combat, horloges | ⬜ À faire |
+| 2 | Outils de jeu : fiches PJ, dés, magie/Fatigue, tracker combat, horloges | ✅ Terminée |
 | 3 | Immersion : médias locaux, soundboard, handouts, carte des 7 îles, Markdown | ⬜ À faire |
 | 4 | Campagne : multi-campagnes, journal, recherche, liens croisés, générateurs | ⬜ À faire |
 | 5 | Confort : raccourcis, mode panique, file de scènes, PWA | ⬜ À faire |
@@ -87,17 +87,19 @@ La base sur laquelle tout le reste s'appuie. Aucune nouvelle fonctionnalité vis
 
 ## Phase 2 — Les outils de jeu qui remplacent le papier
 
-C'est ici que l'app cesse d'être un « afficheur » et devient l'outil de jeu. Tout est taillé pour **ton système** (d20 + 6 stats, Vérités, Jetons de Destin, Fatigue).
+C'est ici que l'app cesse d'être un « afficheur » et devient l'outil de jeu. Tout est taillé pour **ton système** (d20 + 6 stats, Vérités, Jetons de Destin, Fatigue). Les règles chiffrées vivent dans `src/game/rules.ts`.
 
-- [ ] **Fiches de personnage (PJ)** : nouvelle entité `Character` — 6 stats avec modificateurs auto-calculés, HP = Vitalité, Fatigue max = Intelligence, les 3 Vérités, compteur de Jetons de Destin (max 5). Vue MJ compacte : toute l'équipe d'un coup d'œil, ±HP, ±Fatigue, ±Jetons en un clic.
-- [ ] **Lanceur de dés intégré** :
-  - d20 + mod de stat, case « Vérité applicable (+2) », affichage Succès/Échec vs DC choisie (10/13/16/19).
-  - Nat 20 / Nat 1 mis en scène (les critiques ignorent tout, comme dans tes règles).
-  - Option « montrer le jet aux joueurs » : le résultat s'anime sur l'écran joueurs.
-  - Mode **duel** : deux jets opposés côte à côte.
-- [ ] **Assistant magie** : choix de l'ambition (Petite→Extrême = DC), jet Int, application automatique du coût en Fatigue (1/2/3 selon résultat) sur la fiche du PJ, alerte quand la Fatigue max est atteinte (« effondrement »).
-- [ ] **Tracker de scène/combat** : liste ordonnée PJ + PNJ engagés, tour courant, HP visibles, notes rapides. Les stats des PNJ existants (déjà au bon format) s'importent en un clic.
-- [ ] **Horloges de campagne** : compteurs visibles côté MJ (et optionnellement joueurs) — ex. « Solstice : J-12 » pour le rituel de l'Œil du Fond. Décrément manuel en fin de session.
+- [x] **Fiches de personnage (PJ)** (`PartyPanel.tsx`) : entité `Character` — 6 stats avec modificateurs auto-calculés, HP = Vitalité, Fatigue max = Intelligence, les 3 Vérités, compteur de Jetons de Destin (départ 3, max 5). Cartes compactes : toute l'équipe d'un coup d'œil, ±HP, ±Fatigue, ±Jetons en un clic, alerte effondrement.
+- [x] **Lanceur de dés intégré** (`DicePanel.tsx`) :
+  - d20 + mod de stat (ou mod manuel sans PJ), case « Vérité applicable (+2) », Succès/Échec vs DC (10/13/16/19 ou jet libre).
+  - Nat 20 / Nat 1 : critiques qui ignorent modificateurs et DC.
+  - Dépense de Jetons de Destin après le jet : relance ou +5, décomptés de la fiche.
+  - Option « montrer les jets aux joueurs » : animation du résultat sur l'écran joueurs.
+  - Mode **duel** : deux jets opposés côte à côte, égalité = impasse.
+- [x] **Assistant magie** : ambition (Petite→Extrême = DC), jet Int, coût en Fatigue automatique (succès 1 / échec 2 / échec critique 3 + complication) appliqué à la fiche, alerte « 💥 Effondrement » à la Fatigue max.
+- [x] **Tracker de scène/combat** (`CombatPanel.tsx`) : liste ordonnée (réordonnable), tour courant, rounds, ±HP, notes rapides. Import PJ en un clic (HP reflétés sur la fiche dans les deux sens) et PNJ (HP extraits de leurs stats texte).
+- [x] **Horloges de campagne** (`ClocksPanel.tsx`) : compteurs « J-N » avec ±, visibilité par horloge sur l'écran joueurs (poussée en direct), horloge Solstice par défaut.
+- 5 tests Playwright (dés déterministes via Math.random stub, Fatigue, horloges côté joueurs, combat).
 
 ## Phase 3 — Immersion : médias et documents
 

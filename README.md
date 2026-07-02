@@ -38,6 +38,10 @@ couvre les onglets d'un même navigateur.
 | Onglet MJ | Rôle |
 |-----------|------|
 | 🖥 Écran joueurs | Pousser image, légende, texte narratif et musique vers la vue joueurs |
+| 🎭 PJ | Fiches des personnages : 6 stats + mods auto, HP, Fatigue, Jetons de Destin, Vérités |
+| 🎲 Dés | Jet simple (d20 + mod + Vérité vs DC), duel opposé, assistant magie avec coût en Fatigue |
+| ⚔️ Combat | Ordre des tours, rounds, HP (reflétés sur les fiches PJ), import PJ/PNJ en un clic |
+| ⏳ Horloges | Comptes à rebours de campagne (ex. « Solstice — J-12 »), affichables aux joueurs |
 | 👤 PNJ | Fiches PNJ : stats, description publique, **secrets visibles du MJ seul** |
 | 📖 Règles | Les règles de la maison (d20, Vérités, Jetons de Destin, magie/Fatigue…) |
 | 📝 Notes | Objectifs, hooks et rappels de la session |
@@ -47,6 +51,10 @@ Astuces :
   son portrait et son nom aux joueurs.
 - Si la musique ne démarre pas côté joueurs (blocage autoplay du navigateur),
   un bouton « Toucher pour activer le son » s'affiche sur la vue joueurs.
+- Dans l'onglet 🎲, coche « Montrer les jets aux joueurs » pour que chaque jet
+  s'anime en grand sur l'écran joueurs (résultat, réussite/échec, critiques).
+- Après un jet, un PJ peut dépenser un Jeton de Destin : relance ou +5, décompté
+  automatiquement de sa fiche.
 
 ## Données et sauvegardes
 

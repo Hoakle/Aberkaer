@@ -1,15 +1,19 @@
 import { useRef, useState } from 'react'
 import { useGMStore } from '../../store/gmStore'
-import type { NPC, RuleSection, SessionNote } from '../../types'
+import type { NPC, RuleSection, SessionNote, Character, CampaignClock, CombatState } from '../../types'
 
 interface CampaignExport {
   npcs: NPC[]
   rules: RuleSection[]
   notes: SessionNote[]
+  characters: Character[]
+  clocks: CampaignClock[]
+  combat: CombatState
 }
 
-// Accepte notre export direct { npcs, rules, notes } mais aussi le format
-// zustand-persist de campaign-data.json ({ state: {...}, version }).
+// Accepte notre export direct { npcs, rules, notes, ... } mais aussi le format
+// zustand-persist de campaign-data.json ({ state: {...}, version }), y compris
+// les exports antérieurs sans personnages/horloges/combat.
 function parseCampaignFile(raw: string): CampaignExport | null {
   try {
     let data = JSON.parse(raw)
@@ -17,7 +21,17 @@ function parseCampaignFile(raw: string): CampaignExport | null {
     if (!data || !Array.isArray(data.npcs) || !Array.isArray(data.rules) || !Array.isArray(data.notes)) {
       return null
     }
-    return { npcs: data.npcs, rules: data.rules, notes: data.notes }
+    return {
+      npcs: data.npcs,
+      rules: data.rules,
+      notes: data.notes,
+      characters: Array.isArray(data.characters) ? data.characters : [],
+      clocks: Array.isArray(data.clocks) ? data.clocks : [],
+      combat:
+        data.combat && Array.isArray(data.combat.combatants)
+          ? data.combat
+          : { round: 1, turnIndex: 0, combatants: [] },
+    }
   } catch {
     return null
   }
@@ -33,8 +47,8 @@ export default function CampaignMenu() {
   }
 
   const exportCampaign = () => {
-    const { npcs, rules, notes } = useGMStore.getState()
-    const blob = new Blob([JSON.stringify({ npcs, rules, notes }, null, 2)], {
+    const { npcs, rules, notes, characters, clocks, combat } = useGMStore.getState()
+    const blob = new Blob([JSON.stringify({ npcs, rules, notes, characters, clocks, combat }, null, 2)], {
       type: 'application/json',
     })
     const url = URL.createObjectURL(blob)
@@ -52,10 +66,17 @@ export default function CampaignMenu() {
       return
     }
     const ok = window.confirm(
-      `Remplacer la campagne actuelle par « ${file.name} » ?\n(${parsed.npcs.length} PNJ, ${parsed.rules.length} règles, ${parsed.notes.length} notes)\n\nPense à exporter d'abord si tu veux garder l'état actuel.`
+      `Remplacer la campagne actuelle par « ${file.name} » ?\n(${parsed.npcs.length} PNJ, ${parsed.rules.length} règles, ${parsed.notes.length} notes, ${parsed.characters.length} PJ, ${parsed.clocks.length} horloges)\n\nPense à exporter d'abord si tu veux garder l'état actuel.`
     )
     if (!ok) return
-    useGMStore.setState({ npcs: parsed.npcs, rules: parsed.rules, notes: parsed.notes })
+    useGMStore.setState({
+      npcs: parsed.npcs,
+      rules: parsed.rules,
+      notes: parsed.notes,
+      characters: parsed.characters,
+      clocks: parsed.clocks,
+      combat: parsed.combat,
+    })
     flash('✓ Campagne importée')
   }
 

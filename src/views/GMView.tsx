@@ -4,14 +4,22 @@ import RulesPanel from '../components/gm/RulesPanel'
 import NotesPanel from '../components/gm/NotesPanel'
 import DisplayControl from '../components/gm/DisplayControl'
 import CampaignMenu from '../components/gm/CampaignMenu'
+import PartyPanel from '../components/gm/PartyPanel'
+import DicePanel from '../components/gm/DicePanel'
+import CombatPanel from '../components/gm/CombatPanel'
+import ClocksPanel from '../components/gm/ClocksPanel'
 import { useBroadcastReceiver, useBroadcastSender } from '../hooks/useBroadcast'
 import { useAdoptServerDisplay } from '../hooks/useTableSync'
 import { useGMStore } from '../store/gmStore'
 
-type Tab = 'display' | 'npcs' | 'rules' | 'notes'
+type Tab = 'display' | 'party' | 'dice' | 'combat' | 'clocks' | 'npcs' | 'rules' | 'notes'
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'display', label: 'Écran joueurs', icon: '🖥' },
+  { id: 'party', label: 'PJ', icon: '🎭' },
+  { id: 'dice', label: 'Dés', icon: '🎲' },
+  { id: 'combat', label: 'Combat', icon: '⚔️' },
+  { id: 'clocks', label: 'Horloges', icon: '⏳' },
   { id: 'npcs', label: 'PNJ', icon: '👤' },
   { id: 'rules', label: 'Règles', icon: '📖' },
   { id: 'notes', label: 'Notes', icon: '📝' },
@@ -82,6 +90,10 @@ export default function GMView() {
         {/* Main panel */}
         <main className="flex-1 p-4 overflow-y-auto">
           {tab === 'display' && <DisplayControl />}
+          {tab === 'party' && <PartyPanel />}
+          {tab === 'dice' && <DicePanel />}
+          {tab === 'combat' && <CombatPanel />}
+          {tab === 'clocks' && <ClocksPanel />}
           {tab === 'npcs' && <NPCPanel />}
           {tab === 'rules' && <RulesPanel />}
           {tab === 'notes' && <NotesPanel />}
