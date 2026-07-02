@@ -7,37 +7,81 @@ import os from 'node:os'
 import path from 'node:path'
 import type { ServerResponse } from 'node:http'
 
-// ─── Persistance de la campagne ──────────────────────────────────────────────
+// ─── Persistance des campagnes (multi-campagnes) ─────────────────────────────
+// Chaque campagne a son fichier JSON. La campagne historique « aberkaer »
+// reste dans campaign-data.json, les autres vivent dans campaigns/<id>.json.
+// campaigns/index.json retient la liste et la campagne active.
 
-// Surchargeable pour les tests (fichier de données jetable).
+// Surchargeable pour les tests (fichiers de données jetables).
 const DATA_FILE = process.env.ABERKAER_DATA_FILE
   ? path.resolve(process.env.ABERKAER_DATA_FILE)
   : path.resolve(__dirname, 'campaign-data.json')
+const CAMPAIGNS_DIR = path.join(path.dirname(DATA_FILE), 'campaigns')
+const CAMPAIGNS_INDEX = path.join(CAMPAIGNS_DIR, 'index.json')
+const ARCHIVE_DIR = path.join(CAMPAIGNS_DIR, 'archive')
 const BACKUP_DIR = path.join(path.dirname(DATA_FILE), 'backups')
 // Au plus un snapshot toutes les 10 minutes, on garde les 20 derniers.
 const BACKUP_MIN_INTERVAL_MS = 10 * 60 * 1000
 const BACKUP_KEEP = 20
 
-function listBackups(): string[] {
+interface CampaignIndex {
+  active: string
+  campaigns: Record<string, string> // id → nom affiché
+}
+
+const defaultIndex = (): CampaignIndex => ({ active: 'aberkaer', campaigns: { aberkaer: 'Aberkaer' } })
+
+function loadIndex(): CampaignIndex {
+  try {
+    const idx = JSON.parse(fs.readFileSync(CAMPAIGNS_INDEX, 'utf-8')) as CampaignIndex
+    if (idx?.active && idx?.campaigns && Object.keys(idx.campaigns).length > 0 && idx.campaigns[idx.active]) {
+      return idx
+    }
+  } catch {}
+  return defaultIndex()
+}
+
+function saveIndex(idx: CampaignIndex) {
+  fs.mkdirSync(CAMPAIGNS_DIR, { recursive: true })
+  fs.writeFileSync(CAMPAIGNS_INDEX, JSON.stringify(idx, null, 2))
+}
+
+const campaignFile = (id: string) =>
+  id === 'aberkaer' ? DATA_FILE : path.join(CAMPAIGNS_DIR, `${id}.json`)
+const activeFile = () => campaignFile(loadIndex().active)
+
+const slugify = (name: string) =>
+  name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'campagne'
+
+function listBackups(prefix: string): string[] {
   if (!fs.existsSync(BACKUP_DIR)) return []
   return fs
     .readdirSync(BACKUP_DIR)
-    .filter((f) => f.startsWith('campaign-') && f.endsWith('.json'))
+    .filter((f) => f.startsWith(prefix) && f.endsWith('.json'))
     .sort()
 }
 
-// Avant d'écraser campaign-data.json, on en garde une copie horodatée.
+// Avant d'écraser le fichier de la campagne active, on en garde une copie
+// horodatée (par campagne).
 function backupCurrentFile() {
-  if (!fs.existsSync(DATA_FILE)) return
-  const backups = listBackups()
+  const id = loadIndex().active
+  const file = campaignFile(id)
+  if (!fs.existsSync(file)) return
+  const prefix = `${id}-`
+  const backups = listBackups(prefix)
   const last = backups[backups.length - 1]
   if (last && Date.now() - fs.statSync(path.join(BACKUP_DIR, last)).mtimeMs < BACKUP_MIN_INTERVAL_MS) {
     return
   }
   fs.mkdirSync(BACKUP_DIR, { recursive: true })
   const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
-  fs.copyFileSync(DATA_FILE, path.join(BACKUP_DIR, `campaign-${stamp}.json`))
-  for (const old of listBackups().slice(0, -BACKUP_KEEP)) {
+  fs.copyFileSync(file, path.join(BACKUP_DIR, `${prefix}${stamp}.json`))
+  for (const old of listBackups(prefix).slice(0, -BACKUP_KEEP)) {
     fs.unlinkSync(path.join(BACKUP_DIR, old))
   }
 }
@@ -59,19 +103,73 @@ function readJsonBody(req: Connect.IncomingMessage, onJson: (body: string) => vo
 
 const campaignMiddleware: Connect.NextHandleFunction = (req, res: ServerResponse) => {
   res.setHeader('Content-Type', 'application/json')
+  const file = activeFile()
   if (req.method === 'GET') {
-    res.end(fs.existsSync(DATA_FILE) ? fs.readFileSync(DATA_FILE, 'utf-8') : 'null')
+    res.end(fs.existsSync(file) ? fs.readFileSync(file, 'utf-8') : 'null')
   } else if (req.method === 'POST') {
     readJsonBody(req, (body) => {
       backupCurrentFile()
-      fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true })
-      fs.writeFileSync(DATA_FILE, body)
+      fs.mkdirSync(path.dirname(file), { recursive: true })
+      fs.writeFileSync(file, body)
       res.end('"ok"')
     }, res)
   } else if (req.method === 'DELETE') {
     backupCurrentFile()
-    if (fs.existsSync(DATA_FILE)) fs.unlinkSync(DATA_FILE)
+    if (fs.existsSync(file)) fs.unlinkSync(file)
     res.end('"ok"')
+  } else {
+    res.statusCode = 405
+    res.end('"Method Not Allowed"')
+  }
+}
+
+// Gestion des campagnes : lister, créer, changer, archiver.
+const campaignsMiddleware: Connect.NextHandleFunction = (req, res: ServerResponse) => {
+  res.setHeader('Content-Type', 'application/json')
+  if (req.method === 'GET') {
+    const idx = loadIndex()
+    res.end(
+      JSON.stringify({
+        active: idx.active,
+        campaigns: Object.entries(idx.campaigns).map(([id, name]) => ({ id, name })),
+      })
+    )
+  } else if (req.method === 'POST') {
+    readJsonBody(req, (body) => {
+      const { action, name, id } = JSON.parse(body) as { action?: string; name?: string; id?: string }
+      const idx = loadIndex()
+      if (action === 'create' && typeof name === 'string' && name.trim()) {
+        const base = slugify(name)
+        let slug = base
+        let n = 2
+        while (idx.campaigns[slug]) slug = `${base}-${n++}`
+        idx.campaigns[slug] = name.trim()
+        idx.active = slug
+        saveIndex(idx)
+        resetSceneForCampaignChange()
+        res.end(JSON.stringify({ active: idx.active }))
+      } else if (action === 'select' && id && idx.campaigns[id]) {
+        idx.active = id
+        saveIndex(idx)
+        resetSceneForCampaignChange()
+        res.end(JSON.stringify({ active: idx.active }))
+      } else if (action === 'archive' && id && idx.campaigns[id]) {
+        const file = campaignFile(id)
+        if (fs.existsSync(file)) {
+          fs.mkdirSync(ARCHIVE_DIR, { recursive: true })
+          fs.renameSync(file, path.join(ARCHIVE_DIR, `${id}.json`))
+        }
+        delete idx.campaigns[id]
+        if (Object.keys(idx.campaigns).length === 0) idx.campaigns = { aberkaer: 'Aberkaer' }
+        if (!idx.campaigns[idx.active]) idx.active = Object.keys(idx.campaigns)[0]
+        saveIndex(idx)
+        resetSceneForCampaignChange()
+        res.end(JSON.stringify({ active: idx.active }))
+      } else {
+        res.statusCode = 400
+        res.end('"Requête invalide"')
+      }
+    }, res)
   } else {
     res.statusCode = 405
     res.end('"Method Not Allowed"')
@@ -88,6 +186,13 @@ const sseClients = new Set<ServerResponse>()
 function sseBroadcast(msg: object) {
   const data = `data: ${JSON.stringify(msg)}\n\n`
   for (const client of sseClients) client.write(data)
+}
+
+// Changement de campagne : la scène en cours n'a plus de sens, les écrans
+// joueurs rechargent leurs données.
+function resetSceneForCampaignChange() {
+  displayState = null
+  sseBroadcast({ type: 'CAMPAIGN_CHANGED' })
 }
 
 const eventsMiddleware: Connect.NextHandleFunction = (req, res: ServerResponse) => {
@@ -228,6 +333,7 @@ const infoMiddleware: Connect.NextHandleFunction = (_req, res: ServerResponse) =
 }
 
 function attachApi(server: ViteDevServer | PreviewServer) {
+  server.middlewares.use('/api/campaigns', campaignsMiddleware)
   server.middlewares.use('/api/campaign', campaignMiddleware)
   server.middlewares.use('/api/events', eventsMiddleware)
   server.middlewares.use('/api/display', displayMiddleware)

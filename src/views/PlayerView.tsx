@@ -17,6 +17,8 @@ export default function PlayerView() {
   const connected = usePlayerSync((msg) => {
     if (msg.type === 'DISPLAY_UPDATE') {
       setDisplay((prev) => ({ ...prev, ...msg.payload }))
+    } else if (msg.type === 'CAMPAIGN_CHANGED') {
+      window.location.reload()
     }
   })
 

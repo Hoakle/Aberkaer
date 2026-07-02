@@ -45,7 +45,8 @@ couvre les onglets d'un même navigateur.
 | 🗺 Carte | Les 7 îles d'Aberkaer : repères au clic, marée haute/basse, version joueurs poussable |
 | 📜 Documents | Lettres et documents en Markdown, affichés en « parchemin » sur l'écran joueurs |
 | 🎨 Médias | Bibliothèque locale d'images et de sons (dossier `media/`) — zéro internet requis |
-| 👤 PNJ | Fiches PNJ : stats, description publique, **secrets visibles du MJ seul** |
+| 📔 Campagne | Journal de sessions, timeline de l'intrigue (su des joueurs vs vérité MJ), générateurs |
+| 👤 PNJ | Fiches PNJ (+ vue 🕸 Relations) : stats, description publique, **secrets MJ seul** |
 | 📖 Règles | Les règles de la maison (d20, Vérités, Jetons de Destin, magie/Fatigue…) |
 | 📝 Notes | Objectifs, hooks et rappels de la session |
 
@@ -63,6 +64,12 @@ Astuces :
   (tonnerre, cloche, porte qui grince).
 - Prépare tes fichiers dans `media/` (ou uploade-les depuis l'onglet) : tout est
   servi en local, l'outil fonctionne sans connexion internet.
+- **`Ctrl+K`** ouvre la recherche globale : « Omric » retrouve sa fiche, ses
+  secrets, les notes et les événements de timeline qui le mentionnent.
+- Écris `[[Frère Omric]]` dans une note ou un document : le nom devient un lien
+  qui ouvre la recherche.
+- **Plusieurs campagnes** : le sélecteur dans l'en-tête crée, change ou archive
+  une campagne (un fichier JSON chacune dans `campaigns/`, backups séparés).
 
 ## Données et sauvegardes
 

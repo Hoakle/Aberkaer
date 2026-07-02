@@ -15,6 +15,8 @@ import type {
   Handout,
   MapPin,
   Tide,
+  SessionLog,
+  TimelineEvent,
 } from '../types'
 
 interface GMStore {
@@ -27,6 +29,8 @@ interface GMStore {
   handouts: Handout[]
   mapPins: MapPin[]
   tide: Tide
+  sessionLogs: SessionLog[]
+  timeline: TimelineEvent[]
   display: PlayerDisplay
 
   addNPC: (npc: Omit<NPC, 'id'>) => void
@@ -68,6 +72,15 @@ interface GMStore {
   updateMapPin: (id: string, data: Partial<MapPin>) => void
   deleteMapPin: (id: string) => void
   setTide: (tide: Tide) => void
+
+  addSessionLog: (l: Omit<SessionLog, 'id'>) => void
+  updateSessionLog: (id: string, data: Partial<SessionLog>) => void
+  deleteSessionLog: (id: string) => void
+
+  addTimelineEvent: (e: Omit<TimelineEvent, 'id'>) => void
+  updateTimelineEvent: (id: string, data: Partial<TimelineEvent>) => void
+  deleteTimelineEvent: (id: string) => void
+  moveTimelineEvent: (id: string, dir: -1 | 1) => void
 
   updateDisplay: (data: Partial<PlayerDisplay>) => void
 }
@@ -327,6 +340,43 @@ const defaultHandouts: Handout[] = [
   },
 ]
 
+// La chronologie des deux fils de l'intrigue — ce que les joueurs savent
+// n'est pas ce qui s'est vraiment passé.
+const defaultTimeline: TimelineEvent[] = [
+  {
+    id: 'tl-omric',
+    when: 'Il y a 2 ans',
+    title: 'Disparition de Frère Omric',
+    playersKnow: 'Un prêtre respecté du Culte a quitté l\'Île du Temple sans explication.',
+    truth: 'Omric fonde l\'Œil du Fond dans les caves de l\'Île du Temple, accessibles par un passage sous-marin à marée basse.',
+    thread: 'fond',
+  },
+  {
+    id: 'tl-livraison',
+    when: 'Il y a 3 semaines',
+    title: 'Livraison nocturne à l\'Île du Temple',
+    playersKnow: '',
+    truth: 'Cael paie Isla « La Nœud » pour son silence sur une cargaison passée par Roz Fall.',
+    thread: 'valdrek',
+  },
+  {
+    id: 'tl-edric',
+    when: 'Il y a 15 jours',
+    title: 'Mort de Lord Edric Valdrek',
+    playersKnow: 'Mort officiellement de maladie. Maren en doute.',
+    truth: 'Assassiné sur ordre de Cael, via un intermédiaire de la Guilde des Armateurs.',
+    thread: 'valdrek',
+  },
+  {
+    id: 'tl-solstice',
+    when: 'J-12',
+    title: 'Solstice — le rituel de l\'Éveil',
+    playersKnow: '',
+    truth: 'Omric compte « éveiller » le Grand Fond. Les phénomènes étranges vont s\'intensifier à mesure que la date approche.',
+    thread: 'fond',
+  },
+]
+
 export const useGMStore = create<GMStore>()(
   persist(
     (set) => ({
@@ -339,6 +389,8 @@ export const useGMStore = create<GMStore>()(
       handouts: defaultHandouts,
       mapPins: [],
       tide: 'haute',
+      sessionLogs: [],
+      timeline: defaultTimeline,
       display: {
         imageUrl: '',
         caption: '',
@@ -475,6 +527,26 @@ export const useGMStore = create<GMStore>()(
       deleteMapPin: (id) => set((s) => ({ mapPins: s.mapPins.filter((p) => p.id !== id) })),
       setTide: (tide) => set(() => ({ tide })),
 
+      addSessionLog: (l) => set((s) => ({ sessionLogs: [...s.sessionLogs, { ...l, id: uid() }] })),
+      updateSessionLog: (id, data) =>
+        set((s) => ({ sessionLogs: s.sessionLogs.map((l) => (l.id === id ? { ...l, ...data } : l)) })),
+      deleteSessionLog: (id) =>
+        set((s) => ({ sessionLogs: s.sessionLogs.filter((l) => l.id !== id) })),
+
+      addTimelineEvent: (e) => set((s) => ({ timeline: [...s.timeline, { ...e, id: uid() }] })),
+      updateTimelineEvent: (id, data) =>
+        set((s) => ({ timeline: s.timeline.map((e) => (e.id === id ? { ...e, ...data } : e)) })),
+      deleteTimelineEvent: (id) => set((s) => ({ timeline: s.timeline.filter((e) => e.id !== id) })),
+      moveTimelineEvent: (id, dir) =>
+        set((s) => {
+          const list = [...s.timeline]
+          const i = list.findIndex((e) => e.id === id)
+          const j = i + dir
+          if (i < 0 || j < 0 || j >= list.length) return {}
+          ;[list[i], list[j]] = [list[j], list[i]]
+          return { timeline: list }
+        }),
+
       updateDisplay: (data) => set((s) => ({ display: { ...s.display, ...data } })),
     }),
     {
@@ -491,6 +563,8 @@ export const useGMStore = create<GMStore>()(
         handouts: state.handouts,
         mapPins: state.mapPins,
         tide: state.tide,
+        sessionLogs: state.sessionLogs,
+        timeline: state.timeline,
       }),
     }
   )

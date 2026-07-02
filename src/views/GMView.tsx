@@ -11,6 +11,8 @@ import ClocksPanel from '../components/gm/ClocksPanel'
 import MapPanel from '../components/gm/MapPanel'
 import HandoutsPanel from '../components/gm/HandoutsPanel'
 import MediaPanel from '../components/gm/MediaPanel'
+import CampaignPanel from '../components/gm/CampaignPanel'
+import SearchPalette from '../components/gm/SearchPalette'
 import { useBroadcastReceiver, useBroadcastSender } from '../hooks/useBroadcast'
 import { useAdoptServerDisplay } from '../hooks/useTableSync'
 import { useGMStore } from '../store/gmStore'
@@ -24,6 +26,7 @@ type Tab =
   | 'map'
   | 'handouts'
   | 'media'
+  | 'campaign'
   | 'npcs'
   | 'rules'
   | 'notes'
@@ -37,6 +40,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'map', label: 'Carte', icon: '🗺' },
   { id: 'handouts', label: 'Documents', icon: '📜' },
   { id: 'media', label: 'Médias', icon: '🎨' },
+  { id: 'campaign', label: 'Campagne', icon: '📔' },
   { id: 'npcs', label: 'PNJ', icon: '👤' },
   { id: 'rules', label: 'Règles', icon: '📖' },
   { id: 'notes', label: 'Notes', icon: '📝' },
@@ -44,7 +48,30 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 
 export default function GMView() {
   const [tab, setTab] = useState<Tab>('display')
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const send = useBroadcastSender()
+
+  // Ctrl+K / Cmd+K ouvre la recherche ; les [[wikilinks]] aussi.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setSearchQuery('')
+        setSearchOpen(true)
+      }
+    }
+    const onWikiSearch = (e: Event) => {
+      setSearchQuery((e as CustomEvent<string>).detail)
+      setSearchOpen(true)
+    }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('aberkaer:search', onWikiSearch)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('aberkaer:search', onWikiSearch)
+    }
+  }, [])
 
   // Une vue joueurs qui s'ouvre (ou se recharge) demande l'état courant :
   // on lui renvoie l'affichage complet.
@@ -73,6 +100,16 @@ export default function GMView() {
           <span className="text-stone-600 text-xs">— Écran de Maître de Jeu</span>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setSearchQuery('')
+              setSearchOpen(true)
+            }}
+            title="Recherche globale (Ctrl+K)"
+            className="text-xs px-3 py-1 rounded border border-stone-700 text-stone-400 hover:text-stone-200 hover:border-stone-600 transition-colors"
+          >
+            🔍 Rechercher <kbd className="text-stone-600">Ctrl+K</kbd>
+          </button>
           <CampaignMenu />
           <a
             href="/player"
@@ -114,11 +151,21 @@ export default function GMView() {
           {tab === 'map' && <MapPanel />}
           {tab === 'handouts' && <HandoutsPanel />}
           {tab === 'media' && <MediaPanel />}
+          {tab === 'campaign' && <CampaignPanel />}
           {tab === 'npcs' && <NPCPanel />}
           {tab === 'rules' && <RulesPanel />}
           {tab === 'notes' && <NotesPanel />}
         </main>
       </div>
+
+      {searchOpen && (
+        <SearchPalette
+          query={searchQuery}
+          setQuery={setSearchQuery}
+          onClose={() => setSearchOpen(false)}
+          onNavigate={(target) => setTab(target)}
+        />
+      )}
     </div>
   )
 }

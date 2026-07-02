@@ -17,7 +17,7 @@ et toutes les données de campagne vivent dans le dépôt, versionnées et sauve
 | 1 | Multi-écrans : sync serveur (SSE), QR code, transitions | ✅ Terminée |
 | 2 | Outils de jeu : fiches PJ, dés, magie/Fatigue, tracker combat, horloges | ✅ Terminée |
 | 3 | Immersion : médias locaux, soundboard, handouts, carte des 7 îles, Markdown | ✅ Terminée |
-| 4 | Campagne : multi-campagnes, journal, recherche, liens croisés, générateurs | ⬜ À faire |
+| 4 | Campagne : multi-campagnes, journal, recherche, liens croisés, générateurs | ✅ Terminée |
 | 5 | Confort : raccourcis, mode panique, file de scènes, PWA | ⬜ À faire |
 
 Note : B2 (sync mono-navigateur) est listé dans les bugs mais se corrige en phase 1
@@ -111,12 +111,13 @@ C'est ici que l'app cesse d'être un « afficheur » et devient l'outil de jeu. 
 
 ## Phase 4 — Gestion de campagne longue durée
 
-- [ ] **Multi-campagnes** : sélecteur au démarrage, un dossier de données par campagne. Archivage d'une campagne terminée.
-- [ ] **Journal de sessions** : une entrée par session (date, résumé, événements marquants, XP/récompenses), pré-remplie avec ce qui a été affiché/joué pendant la session.
-- [ ] **Recherche globale** (`Ctrl+K`) : chercher « Omric » et retrouver instantanément le PNJ, les notes et les règles qui le mentionnent.
-- [ ] **Liens croisés et graphe de relations** : syntaxe `[[Maren Valdrek]]` dans les notes → lien cliquable ; vue graphe des PNJ/factions (Valdrek, Guilde des Armateurs, Culte, Œil du Fond, Fil Gris…).
-- [ ] **Générateurs aléatoires** : noms (consonance locale), rumeurs de taverne, météo du fleuve, rencontres par île.
-- [ ] **Timeline de l'intrigue** : les deux fils (meurtre d'Edric / rituel du solstice) sur une frise, avec ce que les joueurs savent vs la vérité.
+- [x] **Multi-campagnes** : sélecteur dans l'en-tête MJ, un fichier JSON par campagne (`campaigns/<id>.json`, la campagne historique reste `campaign-data.json`), backups horodatés par campagne, archivage dans `campaigns/archive/` (rien n'est supprimé). Le serveur diffuse `CAMPAIGN_CHANGED` : les écrans joueurs rechargent d'eux-mêmes. Au passage : le repli localStorage ne peut plus injecter les données d'une autre campagne.
+- [x] **Journal de sessions** (onglet 📔 Campagne) : date, titre, compte rendu Markdown pré-rempli d'un gabarit (Résumé / Moments forts / À suivre), tri antichronologique. (Le pré-remplissage automatique avec ce qui a été joué demanderait un historique de session — remis à plus tard.)
+- [x] **Recherche globale** (`Ctrl+K`, `SearchPalette.tsx`) : couvre PNJ, PJ, règles, notes, documents, journal, timeline, horloges et repères de carte, avec extrait contextuel (les secrets d'Omric se lisent directement dans la palette) et navigation vers l'onglet.
+- [x] **Liens croisés et graphe de relations** : `[[Nom]]` dans notes/documents/journal → lien cliquable qui ouvre la recherche sur ce nom. Vue « 🕸 Relations » dans l'onglet PNJ : graphe circulaire dont les arêtes sont déduites des mentions croisées dans rôles/descriptions/secrets, clic = fiche.
+- [x] **Générateurs aléatoires** (`generators.ts`) : noms à consonance locale, rumeurs de taverne, météo du fleuve, rencontres par île (3 par île, les 7 îles couvertes).
+- [x] **Timeline de l'intrigue** : frise à deux fils (meurtre d'Edric / Œil du Fond) avec pour chaque événement « ce que les joueurs savent » vs « la vérité (MJ) », réordonnable, pré-remplie avec les 4 événements clés de la campagne.
+- 6 tests Playwright (isolement multi-campagnes, recherche, wikilink, journal/timeline, générateurs, graphe).
 
 ## Phase 5 — Confort et finitions
 

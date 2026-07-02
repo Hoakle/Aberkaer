@@ -19,6 +19,7 @@ export default function NPCPanel() {
   const [mode, setMode] = useState<Mode>('read')
   const [editing, setEditing] = useState<Omit<NPC, 'id'>>(emptyNPC)
   const [nameError, setNameError] = useState(false)
+  const [showGraph, setShowGraph] = useState(false)
 
   const activeNPC = selected ? npcs.find((n) => n.id === selected) : null
 
@@ -62,6 +63,33 @@ export default function NPCPanel() {
     if (mode === 'create') setSelected(null)
   }
 
+  if (showGraph) {
+    return (
+      <div className="flex flex-col gap-2 max-w-3xl">
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-stone-500">
+            Relations déduites des mentions croisées dans les rôles, descriptions et secrets.
+            Clique sur un PNJ pour ouvrir sa fiche.
+          </p>
+          <button
+            onClick={() => setShowGraph(false)}
+            className="px-3 py-1.5 rounded border border-stone-700 text-stone-300 hover:bg-stone-800 text-xs transition-colors"
+          >
+            ← Retour à la liste
+          </button>
+        </div>
+        <RelationGraph
+          npcs={npcs}
+          onSelect={(id) => {
+            setShowGraph(false)
+            const npc = npcs.find((n) => n.id === id)
+            if (npc) openRead(npc)
+          }}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="flex gap-3 h-full min-h-0">
       {/* List */}
@@ -71,6 +99,12 @@ export default function NPCPanel() {
           className="w-full text-left px-3 py-2 rounded bg-amber-900/40 hover:bg-amber-800/50 text-amber-300 text-sm font-medium border border-amber-800/40 transition-colors"
         >
           + Nouveau PNJ
+        </button>
+        <button
+          onClick={() => setShowGraph(true)}
+          className="w-full text-left px-3 py-2 rounded bg-stone-900 hover:bg-stone-800 text-stone-400 hover:text-stone-200 text-sm border border-stone-800 transition-colors"
+        >
+          🕸 Relations
         </button>
         <div className="flex flex-col gap-1 overflow-y-auto">
           {npcs.map((npc) => (
@@ -166,6 +200,64 @@ export default function NPCPanel() {
         )}
       </div>
     </div>
+  )
+}
+
+// Le nom « court » d'un PNJ pour détecter les mentions : « Frère Omric » se
+// fait appeler Omric, Isla « La Nœud » simplement Isla.
+function shortName(name: string): string {
+  const words = name.replace(/["«»]/g, ' ').split(/\s+/).filter((w) => w.length >= 4)
+  return words[words.length > 1 && ['Frère', 'Lord', 'Dame', 'Grand'].includes(words[0]) ? 1 : 0] ?? name
+}
+
+function RelationGraph({ npcs, onSelect }: { npcs: NPC[]; onSelect: (id: string) => void }) {
+  const n = npcs.length
+  const cx = 50
+  const cy = 38
+  const radius = 28
+  const positions = npcs.map((npc, i) => {
+    const angle = (i / Math.max(1, n)) * 2 * Math.PI - Math.PI / 2
+    return { npc, x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) }
+  })
+
+  const textOf = (npc: NPC) => `${npc.role} ${npc.description} ${npc.secrets}`.toLowerCase()
+  const edges: { a: number; b: number }[] = []
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const nameI = shortName(npcs[i].name).toLowerCase()
+      const nameJ = shortName(npcs[j].name).toLowerCase()
+      if (textOf(npcs[i]).includes(nameJ) || textOf(npcs[j]).includes(nameI)) {
+        edges.push({ a: i, b: j })
+      }
+    }
+  }
+
+  if (n === 0) return <p className="text-stone-500 text-sm text-center py-8">Aucun PNJ.</p>
+
+  return (
+    <svg viewBox="0 0 100 76" className="w-full rounded border border-stone-800 bg-stone-950" role="img" aria-label="Graphe de relations des PNJ">
+      {edges.map((e) => (
+        <line
+          key={`${e.a}-${e.b}`}
+          x1={positions[e.a].x}
+          y1={positions[e.a].y}
+          x2={positions[e.b].x}
+          y2={positions[e.b].y}
+          stroke="#57534e"
+          strokeWidth="0.35"
+          opacity="0.8"
+        />
+      ))}
+      {positions.map(({ npc, x, y }) => (
+        <g key={npc.id} onClick={() => onSelect(npc.id)} className="cursor-pointer">
+          <circle cx={x} cy={y} r="3" fill="#292524" stroke="#b45309" strokeWidth="0.4" />
+          <text x={x} y={y + 0.9} textAnchor="middle" fontSize="2.6">👤</text>
+          <text x={x} y={y + 6} textAnchor="middle" fontSize="2.3" fill="#e7e5e4" fontWeight="600">
+            {npc.name}
+          </text>
+        </g>
+      ))}
+    </svg>
   )
 }
 

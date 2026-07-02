@@ -70,6 +70,24 @@ export interface RollResult {
   outcome: 'crit' | 'fumble' | 'success' | 'failure' | 'open'
 }
 
+// ─── Campagne longue durée ───────────────────────────────────────────────────
+
+export interface SessionLog {
+  id: string
+  date: string // ISO (YYYY-MM-DD)
+  title: string
+  content: string // Markdown
+}
+
+export interface TimelineEvent {
+  id: string
+  when: string // « Il y a 2 ans », « J-12 »...
+  title: string
+  playersKnow: string // ce que les joueurs savent
+  truth: string // la vérité (MJ uniquement)
+  thread: 'valdrek' | 'fond' | 'autre'
+}
+
 // ─── Immersion ───────────────────────────────────────────────────────────────
 
 export interface Handout {
@@ -121,3 +139,5 @@ export type BroadcastMessage =
   | { type: 'SYNC_REQUEST' }
   // Heartbeat émis par la vue MJ toutes les 5 s
   | { type: 'PING' }
+  // La campagne active a changé : les écrans rechargent leurs données
+  | { type: 'CAMPAIGN_CHANGED' }

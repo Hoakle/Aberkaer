@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useGMStore } from '../../store/gmStore'
 import type {
   NPC,
@@ -10,6 +10,8 @@ import type {
   Handout,
   MapPin,
   Tide,
+  SessionLog,
+  TimelineEvent,
 } from '../../types'
 
 interface CampaignExport {
@@ -22,6 +24,8 @@ interface CampaignExport {
   handouts: Handout[]
   mapPins: MapPin[]
   tide: Tide
+  sessionLogs: SessionLog[]
+  timeline: TimelineEvent[]
 }
 
 // Accepte notre export direct { npcs, rules, notes, ... } mais aussi le format
@@ -47,15 +51,58 @@ function parseCampaignFile(raw: string): CampaignExport | null {
       handouts: Array.isArray(data.handouts) ? data.handouts : [],
       mapPins: Array.isArray(data.mapPins) ? data.mapPins : [],
       tide: data.tide === 'basse' ? 'basse' : 'haute',
+      sessionLogs: Array.isArray(data.sessionLogs) ? data.sessionLogs : [],
+      timeline: Array.isArray(data.timeline) ? data.timeline : [],
     }
   } catch {
     return null
   }
 }
 
+interface CampaignInfo {
+  id: string
+  name: string
+}
+
 export default function CampaignMenu() {
   const fileInput = useRef<HTMLInputElement | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
+  const [campaigns, setCampaigns] = useState<CampaignInfo[]>([])
+  const [active, setActive] = useState('')
+
+  useEffect(() => {
+    fetch('/api/campaigns')
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((data: { active: string; campaigns: CampaignInfo[] }) => {
+        setCampaigns(data.campaigns)
+        setActive(data.active)
+      })
+      .catch(() => {})
+  }, [])
+
+  const campaignAction = async (body: object) => {
+    const res = await fetch('/api/campaigns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).catch(() => null)
+    // Les données de la nouvelle campagne se chargent au rechargement.
+    if (res?.ok) window.location.reload()
+  }
+
+  const onCampaignChange = (value: string) => {
+    if (value === '__new') {
+      const name = window.prompt('Nom de la nouvelle campagne :')
+      if (name?.trim()) void campaignAction({ action: 'create', name })
+    } else if (value === '__archive') {
+      const name = campaigns.find((c) => c.id === active)?.name ?? active
+      if (window.confirm(`Archiver la campagne « ${name} » ?\nSes données partent dans campaigns/archive/ — rien n'est supprimé.`)) {
+        void campaignAction({ action: 'archive', id: active })
+      }
+    } else if (value !== active) {
+      void campaignAction({ action: 'select', id: value })
+    }
+  }
 
   const flash = (msg: string) => {
     setFeedback(msg)
@@ -63,10 +110,17 @@ export default function CampaignMenu() {
   }
 
   const exportCampaign = () => {
-    const { npcs, rules, notes, characters, clocks, combat, handouts, mapPins, tide } =
-      useGMStore.getState()
+    const {
+      npcs, rules, notes, characters, clocks, combat, handouts, mapPins, tide, sessionLogs, timeline,
+    } = useGMStore.getState()
     const blob = new Blob(
-      [JSON.stringify({ npcs, rules, notes, characters, clocks, combat, handouts, mapPins, tide }, null, 2)],
+      [
+        JSON.stringify(
+          { npcs, rules, notes, characters, clocks, combat, handouts, mapPins, tide, sessionLogs, timeline },
+          null,
+          2
+        ),
+      ],
       { type: 'application/json' }
     )
     const url = URL.createObjectURL(blob)
@@ -97,6 +151,8 @@ export default function CampaignMenu() {
       handouts: parsed.handouts,
       mapPins: parsed.mapPins,
       tide: parsed.tide,
+      sessionLogs: parsed.sessionLogs,
+      timeline: parsed.timeline,
     })
     flash('✓ Campagne importée')
   }
@@ -104,6 +160,21 @@ export default function CampaignMenu() {
   return (
     <div className="flex items-center gap-2">
       {feedback && <span className="text-xs text-stone-400">{feedback}</span>}
+      {campaigns.length > 0 && (
+        <select
+          value={active}
+          onChange={(e) => onCampaignChange(e.target.value)}
+          aria-label="Campagne active"
+          title="Changer de campagne"
+          className="text-xs bg-stone-900 border border-stone-700 rounded px-2 py-1 text-stone-300 focus:outline-none focus:border-amber-600 max-w-40"
+        >
+          {campaigns.map((c) => (
+            <option key={c.id} value={c.id}>📖 {c.name}</option>
+          ))}
+          <option value="__new">➕ Nouvelle campagne…</option>
+          <option value="__archive">🗄 Archiver la campagne…</option>
+        </select>
+      )}
       <button
         onClick={exportCampaign}
         title="Télécharger la campagne (PNJ, règles, notes) en JSON"

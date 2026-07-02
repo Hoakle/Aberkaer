@@ -50,7 +50,10 @@ const hybridStorage: StateStorage = {
       const res = await fetch('/api/campaign')
       if (res.ok) {
         const text = await res.text()
-        if (text && text !== 'null') return text
+        // Serveur joignable : sa réponse fait foi. « null » = campagne vierge,
+        // on N'utilise PAS le repli localStorage (il peut contenir les données
+        // d'une autre campagne).
+        return text && text !== 'null' ? text : null
       }
     } catch {}
     return localStorage.getItem(LOCAL_KEY)
