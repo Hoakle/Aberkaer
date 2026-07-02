@@ -4,36 +4,49 @@ import type { RuleSection } from '../../types'
 
 const emptyRule: Omit<RuleSection, 'id'> = { title: '', content: '' }
 
+type Mode = 'read' | 'edit' | 'create'
+
 export default function RulesPanel() {
   const { rules, addRule, updateRule, deleteRule } = useGMStore()
   const [selected, setSelected] = useState<string | null>(null)
+  const [mode, setMode] = useState<Mode>('read')
   const [editing, setEditing] = useState<Omit<RuleSection, 'id'>>(emptyRule)
-  const [isCreating, setIsCreating] = useState(false)
+
+  const activeRule = selected ? rules.find((r) => r.id === selected) : null
 
   const openCreate = () => {
     setSelected(null)
     setEditing(emptyRule)
-    setIsCreating(true)
+    setMode('create')
   }
 
-  const openEdit = (rule: RuleSection) => {
-    setIsCreating(false)
+  const openRead = (rule: RuleSection) => {
     setSelected(rule.id)
-    setEditing({ title: rule.title, content: rule.content })
+    setMode('read')
+  }
+
+  const openEdit = () => {
+    if (!activeRule) return
+    setEditing({ title: activeRule.title, content: activeRule.content })
+    setMode('edit')
   }
 
   const save = () => {
     if (!editing.title.trim()) return
-    if (isCreating) {
+    if (mode === 'create') {
       addRule(editing)
-      setIsCreating(false)
+      setMode('read')
+      setSelected(null)
     } else if (selected) {
       updateRule(selected, editing)
+      setMode('read')
     }
-    setSelected(null)
   }
 
-  const cancel = () => { setSelected(null); setIsCreating(false) }
+  const cancel = () => {
+    setMode('read')
+    if (mode === 'create') setSelected(null)
+  }
 
   return (
     <div className="flex gap-3 h-full min-h-0">
@@ -49,7 +62,7 @@ export default function RulesPanel() {
           {rules.map((rule) => (
             <button
               key={rule.id}
-              onClick={() => openEdit(rule)}
+              onClick={() => openRead(rule)}
               className={`w-full text-left px-3 py-2 rounded text-sm transition-colors border ${
                 selected === rule.id
                   ? 'bg-stone-700 border-stone-500 text-stone-100'
@@ -64,7 +77,7 @@ export default function RulesPanel() {
 
       {/* Content area */}
       <div className="flex-1 min-w-0 overflow-y-auto">
-        {isCreating || selected ? (
+        {mode !== 'read' ? (
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
               <label className="text-xs text-stone-400">Titre de la section</label>
@@ -75,7 +88,7 @@ export default function RulesPanel() {
               />
             </div>
             <div className="flex flex-col gap-1 flex-1">
-              <label className="text-xs text-stone-400">Contenu (Markdown basique supporté)</label>
+              <label className="text-xs text-stone-400">Contenu (texte préformaté)</label>
               <textarea
                 value={editing.content}
                 onChange={(e) => setEditing((p) => ({ ...p, content: e.target.value }))}
@@ -90,15 +103,30 @@ export default function RulesPanel() {
               <button onClick={cancel} className="px-4 py-1.5 rounded bg-stone-800 hover:bg-stone-700 text-sm transition-colors">
                 Annuler
               </button>
-              {!isCreating && selected && (
+              {mode === 'edit' && selected && (
                 <button
-                  onClick={() => { deleteRule(selected); cancel() }}
+                  onClick={() => { deleteRule(selected); setSelected(null); setMode('read') }}
                   className="ml-auto px-4 py-1.5 rounded bg-red-950 hover:bg-red-900 text-red-400 text-sm transition-colors"
                 >
                   Supprimer
                 </button>
               )}
             </div>
+          </div>
+        ) : activeRule ? (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-lg font-semibold text-blue-200">{activeRule.title}</h2>
+              <button
+                onClick={openEdit}
+                className="px-3 py-1 rounded border border-stone-700 text-stone-400 hover:text-stone-200 hover:border-stone-600 text-xs transition-colors"
+              >
+                ✎ Modifier
+              </button>
+            </div>
+            <pre className="whitespace-pre-wrap font-sans text-sm text-stone-200 leading-relaxed bg-stone-900/60 border border-stone-800 rounded p-4">
+              {activeRule.content}
+            </pre>
           </div>
         ) : (
           <div className="text-stone-500 text-sm pt-4 text-center">

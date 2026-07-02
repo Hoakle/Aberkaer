@@ -33,6 +33,7 @@ export interface PlayerDisplay {
 
 export type BroadcastMessage =
   | { type: 'DISPLAY_UPDATE'; payload: Partial<PlayerDisplay> }
-  | { type: 'AUDIO_COMMAND'; payload: { action: 'play' | 'pause' | 'volume'; value?: number } }
+  // Envoyé par la vue joueurs à l'ouverture pour récupérer l'état courant
+  | { type: 'SYNC_REQUEST' }
+  // Heartbeat émis par la vue MJ toutes les 5 s
   | { type: 'PING' }
-  | { type: 'PONG' }

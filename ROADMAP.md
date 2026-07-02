@@ -4,6 +4,25 @@ Objectif : remplacer complètement le papier à la table. L'écran MJ devient le
 de la partie, l'écran joueurs devient la « scène » (TV ou tablette posée sur la table),
 et toutes les données de campagne vivent dans le dépôt, versionnées et sauvegardées.
 
+> **Ce fichier est la source de vérité du projet.** Il est conçu pour reprendre le travail
+> sans aucun autre contexte : l'état d'avancement ci-dessous dit où on en est, chaque phase
+> décrit *quoi* faire et *pourquoi*, et le tableau des bugs documente l'état initial du code.
+> Quand une tâche est terminée : cocher sa case et mettre à jour ce tableau.
+
+## État d'avancement
+
+| Phase | Contenu | Statut |
+|-------|---------|--------|
+| 0 | Assainir les fondations (bugs B1, B3–B8, backups, serveur preview, README, tests) | ✅ Terminée |
+| 1 | Multi-écrans : WebSocket, QR code, transitions | ⬜ À faire |
+| 2 | Outils de jeu : fiches PJ, dés, magie/Fatigue, tracker combat, horloges | ⬜ À faire |
+| 3 | Immersion : médias locaux, soundboard, handouts, carte des 7 îles, Markdown | ⬜ À faire |
+| 4 | Campagne : multi-campagnes, journal, recherche, liens croisés, générateurs | ⬜ À faire |
+| 5 | Confort : raccourcis, mode panique, file de scènes, PWA | ⬜ À faire |
+
+Note : B2 (sync mono-navigateur) est listé dans les bugs mais se corrige en phase 1
+(WebSocket), pas en phase 0.
+
 ---
 
 ## État des lieux
@@ -30,20 +49,24 @@ et toutes les données de campagne vivent dans le dépôt, versionnées et sauve
 | B9 | Pas de sauvegarde de secours | Un seul `campaign-data.json`, écrasé à chaque écriture. Une mauvaise manip = campagne perdue. Aucun export/import. |
 | B10 | Contenus presets externes | Images Unsplash et MP3 SoundHelix : sans internet le soir de la partie, plus d'ambiance. Tout doit pouvoir être local. |
 
+> **Mise à jour (phase 0)** : B1 et B3–B9 sont corrigés. Restent **B2** (→ phase 1, WebSocket)
+> et **B10** (→ phase 3, bibliothèque de médias locale).
+
 ---
 
 ## Phase 0 — Assainir les fondations *(petit effort, gros gain)*
 
 La base sur laquelle tout le reste s'appuie. Aucune nouvelle fonctionnalité visible, mais l'outil devient fiable.
 
-- [ ] **Corriger B1–B8** (détail ci-dessus). Points clés :
-  - Implémenter le handshake : l'écran joueurs envoie `PING` à l'ouverture, l'écran MJ répond avec l'état d'affichage complet.
-  - Debounce (~500 ms) des écritures vers `/api/campaign`.
+- [x] **Corriger B1, B3–B8** (détail ci-dessus). Réalisé :
+  - Handshake : l'écran joueurs envoie `SYNC_REQUEST` à l'ouverture, l'écran MJ répond avec l'état d'affichage complet (`GMView.tsx`).
+  - Debounce 500 ms des écritures vers `/api/campaign` + flush `sendBeacon` à la fermeture de l'onglet (`fileStorage.ts`).
   - Heartbeat MJ → joueurs toutes les 5 s ; le point de connexion repasse au gris après 15 s de silence.
-  - Écran joueurs : overlay « ▶ Activer le son » tant que le contexte audio n'est pas débloqué.
-- [ ] **Sauvegardes automatiques** : à chaque session (ou toutes les N écritures), copie horodatée dans `backups/` avec rotation (garder les 20 dernières). Bouton « Exporter / Importer la campagne » (JSON) dans l'UI.
-- [ ] **Vrai serveur local** : extraire le middleware Vite dans un petit serveur Node (Express/Hono ou le plugin Vite en mode `preview` aussi) pour que `npm run build && npm start` fonctionne sans le serveur de dev. `start.sh` mis à jour.
-- [ ] **Hygiène projet** : réécrire le `README.md` (encore le template Vite) avec le mode d'emploi table de jeu ; ajouter quelques tests Playwright de fumée (le dep est déjà là) : créer un PNJ, pousser une image, vérifier l'écran joueurs.
+  - Écran joueurs : bouton « 🔊 Toucher pour activer le son » quand l'autoplay est bloqué.
+  - Vues lecture pour Règles et PNJ (édition sur demande), nom de PNJ requis, fallback sur images cassées.
+- [x] **Sauvegardes automatiques** : snapshot horodaté dans `backups/` avant écrasement (au plus un toutes les 10 min, rotation à 20). Boutons Exporter/Importer JSON dans l'en-tête MJ (`CampaignMenu.tsx`).
+- [x] **Serveur en mode production** : le middleware `/api/campaign` est branché sur `configureServer` ET `configurePreviewServer` → `npm start` (build + preview) persiste comme en dev. `start.sh --prod` ajouté. (L'extraction en serveur autonome se fera en phase 1 avec le hub WebSocket.)
+- [x] **Hygiène projet** : `README.md` réécrit pour la table de jeu ; 5 tests de fumée Playwright (`npm test`) : onglets et données par défaut, vue lecture, création de PNJ + persistance, sync MJ→joueurs, handshake d'un écran ouvert en retard. Le fichier de données est isolable via `ABERKAER_DATA_FILE` (utilisé par les tests). Si les navigateurs Playwright ne sont pas téléchargés : `CHROMIUM_PATH=/chemin/vers/chromium npm test`.
 
 ## Phase 1 — La table multi-écrans *(la fonctionnalité qui change tout)*
 

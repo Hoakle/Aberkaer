@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import NPCPanel from '../components/gm/NPCPanel'
 import RulesPanel from '../components/gm/RulesPanel'
 import NotesPanel from '../components/gm/NotesPanel'
 import DisplayControl from '../components/gm/DisplayControl'
+import CampaignMenu from '../components/gm/CampaignMenu'
+import { useBroadcastReceiver, useBroadcastSender } from '../hooks/useBroadcast'
+import { useGMStore } from '../store/gmStore'
 
 type Tab = 'display' | 'npcs' | 'rules' | 'notes'
 
@@ -15,6 +18,21 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 
 export default function GMView() {
   const [tab, setTab] = useState<Tab>('display')
+  const send = useBroadcastSender()
+
+  // Une vue joueurs qui s'ouvre (ou se recharge) demande l'état courant :
+  // on lui renvoie l'affichage complet.
+  useBroadcastReceiver((msg) => {
+    if (msg.type === 'SYNC_REQUEST') {
+      send({ type: 'DISPLAY_UPDATE', payload: useGMStore.getState().display })
+    }
+  })
+
+  // Heartbeat : permet à la vue joueurs de détecter la perte du MJ.
+  useEffect(() => {
+    const id = setInterval(() => send({ type: 'PING' }), 5000)
+    return () => clearInterval(id)
+  }, [send])
 
   return (
     <div className="min-h-screen flex flex-col bg-stone-950">
@@ -24,14 +42,17 @@ export default function GMView() {
           <span className="text-amber-500 font-semibold tracking-wider text-sm uppercase">Aberkaer</span>
           <span className="text-stone-600 text-xs">— Écran de Maître de Jeu</span>
         </div>
-        <a
-          href="/player"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs px-3 py-1 rounded border border-stone-700 text-stone-400 hover:text-stone-200 hover:border-stone-600 transition-colors"
-        >
-          Vue joueurs ↗
-        </a>
+        <div className="flex items-center gap-2">
+          <CampaignMenu />
+          <a
+            href="/player"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs px-3 py-1 rounded border border-stone-700 text-stone-400 hover:text-stone-200 hover:border-stone-600 transition-colors"
+          >
+            Vue joueurs ↗
+          </a>
+        </div>
       </header>
 
       <div className="flex flex-1 min-h-0">

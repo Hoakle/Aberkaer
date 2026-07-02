@@ -65,4 +65,9 @@ echo ""
 echo "  Vue MJ      → http://localhost:5173/gm"
 echo "  Vue joueurs → http://localhost:5173/player"
 echo ""
-npm run dev
+if [[ "${1:-}" == "--prod" ]]; then
+  # Version optimisée (build + preview) — même persistance fichier qu'en dev.
+  npm start
+else
+  npm run dev
+fi

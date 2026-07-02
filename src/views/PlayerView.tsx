@@ -1,24 +1,49 @@
 import { useEffect, useRef, useState } from 'react'
-import { useBroadcastReceiver } from '../hooks/useBroadcast'
+import { useBroadcastReceiver, useBroadcastSender } from '../hooks/useBroadcast'
 import { useGMStore } from '../store/gmStore'
 import type { PlayerDisplay } from '../types'
+
+// Sans message du MJ pendant ce délai, l'indicateur repasse au gris
+// (le heartbeat MJ est émis toutes les 5 s).
+const CONNECTION_TIMEOUT_MS = 15000
 
 export default function PlayerView() {
   const storeDisplay = useGMStore((s) => s.display)
   const [display, setDisplay] = useState<PlayerDisplay>(storeDisplay)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [audioReady, setAudioReady] = useState(false)
+  const [audioBlocked, setAudioBlocked] = useState(false)
+  const [imageError, setImageError] = useState(false)
   const [connected, setConnected] = useState(false)
+  const connectionTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const send = useBroadcastSender()
+
+  const markConnected = () => {
+    setConnected(true)
+    if (connectionTimer.current) clearTimeout(connectionTimer.current)
+    connectionTimer.current = setTimeout(() => setConnected(false), CONNECTION_TIMEOUT_MS)
+  }
 
   // Receive updates from GM tab
   useBroadcastReceiver((msg) => {
     if (msg.type === 'DISPLAY_UPDATE') {
       setDisplay((prev) => ({ ...prev, ...msg.payload }))
-      setConnected(true)
-    } else if (msg.type === 'PING') {
-      setConnected(true)
     }
+    markConnected()
   })
+
+  // On opening (or reload), ask the GM view for the current state
+  useEffect(() => {
+    send({ type: 'SYNC_REQUEST' })
+    return () => {
+      if (connectionTimer.current) clearTimeout(connectionTimer.current)
+    }
+  }, [send])
+
+  // Reset image error state when the image changes
+  useEffect(() => {
+    setImageError(false)
+  }, [display.imageUrl])
 
   // Sync audio element when audioUrl changes
   useEffect(() => {
@@ -34,12 +59,19 @@ export default function PlayerView() {
     }
   }, [display.audioUrl])
 
+  const tryPlay = () => {
+    audioRef.current
+      ?.play()
+      .then(() => setAudioBlocked(false))
+      .catch(() => setAudioBlocked(true))
+  }
+
   // Play/pause
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
     if (display.audioPlaying) {
-      audio.play().catch(() => {})
+      tryPlay()
     } else {
       audio.pause()
     }
@@ -62,17 +94,20 @@ export default function PlayerView() {
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black flex items-center justify-center select-none">
       {/* Background image */}
-      {display.imageUrl ? (
+      {display.imageUrl && !imageError ? (
         <img
           src={display.imageUrl}
           alt=""
+          onError={() => setImageError(true)}
           className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
           key={display.imageUrl}
         />
       ) : (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
           <div className="text-4xl tracking-[0.3em] text-stone-700 font-light uppercase">Aberkaer</div>
-          <div className="text-stone-800 text-sm">En attente du Maître de Jeu...</div>
+          <div className="text-stone-800 text-sm">
+            {imageError ? 'Image indisponible' : 'En attente du Maître de Jeu...'}
+          </div>
         </div>
       )}
 
@@ -95,8 +130,18 @@ export default function PlayerView() {
         </div>
       )}
 
+      {/* Autoplay blocked: one tap unlocks audio for the rest of the session */}
+      {audioBlocked && display.audioPlaying && display.audioUrl && (
+        <button
+          onClick={tryPlay}
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/70 backdrop-blur-sm border border-amber-800/60 text-amber-300 px-5 py-2.5 rounded-full text-sm hover:bg-black/90 transition-colors"
+        >
+          🔊 Toucher pour activer le son
+        </button>
+      )}
+
       {/* Audio indicator (bottom right, subtle) */}
-      {display.audioPlaying && display.audioUrl && (
+      {display.audioPlaying && display.audioUrl && !audioBlocked && (
         <div className="absolute bottom-4 right-5 flex items-center gap-1.5 opacity-30">
           <AudioBars />
         </div>

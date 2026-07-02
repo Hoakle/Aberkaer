@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Aberkaer
+backups/
+test-results/
+playwright-report/
