@@ -4,6 +4,7 @@ import { test, expect } from '@playwright/test'
 // et côté navigateur, puis on recharge les données par défaut.
 test.beforeEach(async ({ page }) => {
   await page.request.delete('/api/campaign')
+  await page.request.delete('/api/display')
   await page.goto('/gm')
   await page.evaluate(() => localStorage.clear())
   await page.reload()

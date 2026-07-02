@@ -21,12 +21,17 @@ npm run dev     # http://localhost:5173
 ```
 
 - **Vue MJ** → `http://localhost:5173/gm`
-- **Vue joueurs** → `http://localhost:5173/player` (à ouvrir dans un second onglet,
-  idéalement en plein écran sur un second moniteur)
+- **Vue joueurs** → `http://localhost:5173/player`
 
-⚠️ Limite actuelle : la synchronisation utilise `BroadcastChannel`, les deux vues
-doivent donc être des onglets **du même navigateur**. Le support multi-appareils
-(TV, tablette) arrive en phase 1 de la roadmap.
+### Vue joueurs sur TV, tablette ou téléphone
+
+Le serveur écoute sur le réseau local : n'importe quel appareil connecté au même
+Wi-Fi peut ouvrir la vue joueurs. Dans l'onglet « Écran joueurs » de la vue MJ,
+le bouton **⌗ QR code** affiche l'adresse à saisir (ex. `http://192.168.1.42:5173/player`)
+et un QR code à scanner. La scène (image, texte, musique) se synchronise en direct
+via le serveur (SSE, reconnexion automatique) ; un écran ouvert en cours de partie
+rattrape immédiatement l'état courant. Sans serveur, un repli `BroadcastChannel`
+couvre les onglets d'un même navigateur.
 
 ## Utilisation en jeu
 
@@ -70,11 +75,14 @@ Structure :
 
 ```
 src/
-  views/GMView.tsx        Écran MJ (onglets + hub de synchronisation)
-  views/PlayerView.tsx    Écran joueurs plein écran
-  components/gm/          Panneaux MJ (affichage, PNJ, règles, notes, export/import)
+  views/GMView.tsx        Écran MJ (onglets + réponse au handshake)
+  views/PlayerView.tsx    Écran joueurs plein écran (fondu au noir entre scènes)
+  components/gm/          Panneaux MJ (affichage, PNJ, règles, notes, export/import, QR)
   store/gmStore.ts        État global + données par défaut de la campagne
   store/fileStorage.ts    Persistance hybride fichier/localStorage (debounce)
-  hooks/useBroadcast.ts   Canal MJ ↔ joueurs (BroadcastChannel)
-vite.config.ts            Middleware /api/campaign (GET/POST/DELETE + backups)
+  hooks/useTableSync.ts   Sync MJ → joueurs : serveur (SSE) + repli BroadcastChannel
+  hooks/useBroadcast.ts   Canal BroadcastChannel bas niveau
+vite.config.ts            API locale : /api/campaign (persistance + backups),
+                          /api/display et /api/events (scène en direct, SSE),
+                          /api/info (adresses réseau pour le QR code)
 ```

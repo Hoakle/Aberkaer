@@ -5,6 +5,7 @@ import NotesPanel from '../components/gm/NotesPanel'
 import DisplayControl from '../components/gm/DisplayControl'
 import CampaignMenu from '../components/gm/CampaignMenu'
 import { useBroadcastReceiver, useBroadcastSender } from '../hooks/useBroadcast'
+import { useAdoptServerDisplay } from '../hooks/useTableSync'
 import { useGMStore } from '../store/gmStore'
 
 type Tab = 'display' | 'npcs' | 'rules' | 'notes'
@@ -27,6 +28,10 @@ export default function GMView() {
       send({ type: 'DISPLAY_UPDATE', payload: useGMStore.getState().display })
     }
   })
+
+  // Si le serveur tient déjà un état d'affichage (l'écran MJ a été rechargé
+  // en cours de partie), on l'adopte au lieu de repartir des valeurs par défaut.
+  useAdoptServerDisplay((state) => useGMStore.getState().updateDisplay(state))
 
   // Heartbeat : permet à la vue joueurs de détecter la perte du MJ.
   useEffect(() => {

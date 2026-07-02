@@ -14,7 +14,7 @@ et toutes les données de campagne vivent dans le dépôt, versionnées et sauve
 | Phase | Contenu | Statut |
 |-------|---------|--------|
 | 0 | Assainir les fondations (bugs B1, B3–B8, backups, serveur preview, README, tests) | ✅ Terminée |
-| 1 | Multi-écrans : WebSocket, QR code, transitions | ⬜ À faire |
+| 1 | Multi-écrans : sync serveur (SSE), QR code, transitions | ✅ Terminée |
 | 2 | Outils de jeu : fiches PJ, dés, magie/Fatigue, tracker combat, horloges | ⬜ À faire |
 | 3 | Immersion : médias locaux, soundboard, handouts, carte des 7 îles, Markdown | ⬜ À faire |
 | 4 | Campagne : multi-campagnes, journal, recherche, liens croisés, générateurs | ⬜ À faire |
@@ -49,8 +49,8 @@ Note : B2 (sync mono-navigateur) est listé dans les bugs mais se corrige en pha
 | B9 | Pas de sauvegarde de secours | Un seul `campaign-data.json`, écrasé à chaque écriture. Une mauvaise manip = campagne perdue. Aucun export/import. |
 | B10 | Contenus presets externes | Images Unsplash et MP3 SoundHelix : sans internet le soir de la partie, plus d'ambiance. Tout doit pouvoir être local. |
 
-> **Mise à jour (phase 0)** : B1 et B3–B9 sont corrigés. Restent **B2** (→ phase 1, WebSocket)
-> et **B10** (→ phase 3, bibliothèque de médias locale).
+> **Mise à jour (phases 0 et 1)** : B1–B9 sont corrigés. Reste **B10**
+> (→ phase 3, bibliothèque de médias locale).
 
 ---
 
@@ -70,12 +70,20 @@ La base sur laquelle tout le reste s'appuie. Aucune nouvelle fonctionnalité vis
 
 ## Phase 1 — La table multi-écrans *(la fonctionnalité qui change tout)*
 
-- [ ] **Remplacer BroadcastChannel par WebSocket** (le serveur local de la phase 0 fait hub) : l'écran joueurs devient une simple URL ouverte depuis **n'importe quel appareil du réseau local** — TV du salon, tablette au centre de la table, téléphones des joueurs.
-  - Le MJ garde son portable, la TV affiche `http://<ip-du-mj>:5173/player`.
-  - Reconnexion automatique + rattrapage d'état (généralise le fix B1).
-  - Conserver BroadcastChannel en repli si le serveur ne tourne pas.
-- [ ] **QR code dans l'écran MJ** pour que les joueurs ouvrent la vue en scannant.
-- [ ] **Transitions de scène** : fondu au noir entre deux images, plutôt qu'un changement sec.
+- [x] **Sync par le serveur local** — réalisé en **SSE** plutôt que WebSocket : le flux est
+  unidirectionnel (MJ pousse via `POST /api/display`, les écrans écoutent `/api/events`),
+  `EventSource` gère la reconnexion automatiquement, zéro dépendance, pas de conflit avec
+  le WebSocket HMR de Vite. L'état de la scène vit en mémoire serveur :
+  - N'importe quel appareil du réseau local ouvre `http://<ip-du-mj>:5173/player`
+    (`host: true` en dev et preview).
+  - Un écran ouvert en retard reçoit l'état complet à la connexion ; heartbeat serveur 5 s.
+  - Un écran MJ rechargé adopte l'état en cours (`GET /api/display`).
+  - BroadcastChannel conservé en repli si le serveur ne tourne pas (`useTableSync.ts`).
+- [x] **QR code dans l'écran MJ** (`PlayerAccess.tsx`) : `/api/info` expose l'IP locale,
+  le panneau « Écran joueurs » affiche l'URL et le QR à scanner (lib `qrcode`).
+- [x] **Transitions de scène** : fondu au noir 500 ms entre deux images, et vers l'écran
+  vide (`FadeImage` dans `PlayerView.tsx`).
+- 3 tests Playwright multi-appareils (contexts navigateur isolés) couvrent la voie serveur.
 
 ## Phase 2 — Les outils de jeu qui remplacent le papier
 

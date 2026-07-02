@@ -1,5 +1,6 @@
 import { useGMStore } from '../../store/gmStore'
-import { useBroadcastSender } from '../../hooks/useBroadcast'
+import { usePushDisplay } from '../../hooks/useTableSync'
+import PlayerAccess from './PlayerAccess'
 
 const PRESET_IMAGES = [
   { label: 'Taverne', url: 'https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=1920&q=80' },
@@ -16,11 +17,11 @@ const PRESET_AUDIO = [
 
 export default function DisplayControl() {
   const { display, updateDisplay, npcs } = useGMStore()
-  const send = useBroadcastSender()
+  const pushDisplay = usePushDisplay()
 
   const push = (patch: Partial<typeof display>) => {
     updateDisplay(patch)
-    send({ type: 'DISPLAY_UPDATE', payload: patch })
+    pushDisplay(patch)
   }
 
   const pushNPC = (npc: { imageUrl: string; name: string; role: string }) => {
@@ -183,14 +184,7 @@ export default function DisplayControl() {
         )}
       </div>
 
-      <a
-        href="/player"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="w-full py-2 rounded border border-stone-600 text-stone-300 hover:bg-stone-800 text-sm text-center transition-colors"
-      >
-        ↗ Ouvrir la vue joueurs dans un nouvel onglet
-      </a>
+      <PlayerAccess />
     </div>
   )
 }

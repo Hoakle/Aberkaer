@@ -1,11 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { useBroadcastReceiver, useBroadcastSender } from '../hooks/useBroadcast'
+import { usePlayerSync } from '../hooks/useTableSync'
 import { useGMStore } from '../store/gmStore'
 import type { PlayerDisplay } from '../types'
-
-// Sans message du MJ pendant ce délai, l'indicateur repasse au gris
-// (le heartbeat MJ est émis toutes les 5 s).
-const CONNECTION_TIMEOUT_MS = 15000
 
 export default function PlayerView() {
   const storeDisplay = useGMStore((s) => s.display)
@@ -14,31 +10,14 @@ export default function PlayerView() {
   const [audioReady, setAudioReady] = useState(false)
   const [audioBlocked, setAudioBlocked] = useState(false)
   const [imageError, setImageError] = useState(false)
-  const [connected, setConnected] = useState(false)
-  const connectionTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const send = useBroadcastSender()
 
-  const markConnected = () => {
-    setConnected(true)
-    if (connectionTimer.current) clearTimeout(connectionTimer.current)
-    connectionTimer.current = setTimeout(() => setConnected(false), CONNECTION_TIMEOUT_MS)
-  }
-
-  // Receive updates from GM tab
-  useBroadcastReceiver((msg) => {
+  // Réception des mises à jour : serveur local (multi-appareils) +
+  // BroadcastChannel (repli même navigateur).
+  const connected = usePlayerSync((msg) => {
     if (msg.type === 'DISPLAY_UPDATE') {
       setDisplay((prev) => ({ ...prev, ...msg.payload }))
     }
-    markConnected()
   })
-
-  // On opening (or reload), ask the GM view for the current state
-  useEffect(() => {
-    send({ type: 'SYNC_REQUEST' })
-    return () => {
-      if (connectionTimer.current) clearTimeout(connectionTimer.current)
-    }
-  }, [send])
 
   // Reset image error state when the image changes
   useEffect(() => {
@@ -91,18 +70,13 @@ export default function PlayerView() {
     }
   }, [])
 
+  const showImage = Boolean(display.imageUrl) && !imageError
+
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black flex items-center justify-center select-none">
-      {/* Background image */}
-      {display.imageUrl && !imageError ? (
-        <img
-          src={display.imageUrl}
-          alt=""
-          onError={() => setImageError(true)}
-          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
-          key={display.imageUrl}
-        />
-      ) : (
+      {/* Background image, avec fondu au noir entre deux scènes */}
+      <FadeImage url={showImage ? display.imageUrl : ''} onError={() => setImageError(true)} />
+      {!showImage && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
           <div className="text-4xl tracking-[0.3em] text-stone-700 font-light uppercase">Aberkaer</div>
           <div className="text-stone-800 text-sm">
@@ -150,6 +124,35 @@ export default function PlayerView() {
       {/* Connection status (top right, very subtle) */}
       <div className={`absolute top-4 right-4 w-1.5 h-1.5 rounded-full transition-colors ${connected ? 'bg-green-500' : 'bg-stone-700'}`} />
     </div>
+  )
+}
+
+// Fondu au noir : l'image courante s'éteint (500 ms), puis la nouvelle
+// s'allume une fois chargée. `url` vide = simple fondu vers le noir.
+function FadeImage({ url, onError }: { url: string; onError: () => void }) {
+  const [src, setSrc] = useState(url)
+  const [visible, setVisible] = useState(Boolean(url))
+
+  useEffect(() => {
+    if (url === src) return
+    setVisible(false)
+    const t = setTimeout(() => setSrc(url), 500)
+    return () => clearTimeout(t)
+  }, [url, src])
+
+  if (!src) return null
+  return (
+    <img
+      src={src}
+      alt=""
+      onLoad={() => {
+        if (src === url) setVisible(true)
+      }}
+      onError={onError}
+      className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
+        visible ? 'opacity-100' : 'opacity-0'
+      }`}
+    />
   )
 }
 
