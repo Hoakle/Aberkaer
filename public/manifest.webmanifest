@@ -1,0 +1,17 @@
+{
+  "name": "Aberkaer — Table de jeu",
+  "short_name": "Aberkaer",
+  "description": "Écran joueurs du compagnon de table Aberkaer",
+  "start_url": "/player",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#000000",
+  "theme_color": "#0c0a09",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

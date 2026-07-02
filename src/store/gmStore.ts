@@ -1,12 +1,39 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { campaignStorage } from './fileStorage'
-import type { NPC, RuleSection, SessionNote, PlayerDisplay } from '../types'
+import { clamp, TOKEN_MAX } from '../game/rules'
+import { uid } from '../utils/uid'
+import type {
+  NPC,
+  RuleSection,
+  SessionNote,
+  PlayerDisplay,
+  Character,
+  CampaignClock,
+  CombatState,
+  Combatant,
+  Handout,
+  MapPin,
+  Tide,
+  SessionLog,
+  TimelineEvent,
+  Scene,
+} from '../types'
 
 interface GMStore {
   npcs: NPC[]
   rules: RuleSection[]
   notes: SessionNote[]
+  characters: Character[]
+  clocks: CampaignClock[]
+  combat: CombatState
+  handouts: Handout[]
+  mapPins: MapPin[]
+  tide: Tide
+  sessionLogs: SessionLog[]
+  timeline: TimelineEvent[]
+  scenes: Scene[]
+  sceneIndex: number // scène courante de la file (-1 = aucune)
   display: PlayerDisplay
 
   addNPC: (npc: Omit<NPC, 'id'>) => void
@@ -21,10 +48,51 @@ interface GMStore {
   updateNote: (id: string, data: Partial<SessionNote>) => void
   deleteNote: (id: string) => void
 
+  addCharacter: (c: Omit<Character, 'id'>) => void
+  updateCharacter: (id: string, data: Partial<Character>) => void
+  deleteCharacter: (id: string) => void
+  // ±HP / ±Fatigue / ±Jetons en un clic, avec bornes du système
+  adjustCharacter: (id: string, field: 'hp' | 'fatigue' | 'tokens', delta: number) => void
+
+  addClock: (c: Omit<CampaignClock, 'id'>) => void
+  updateClock: (id: string, data: Partial<CampaignClock>) => void
+  deleteClock: (id: string) => void
+  adjustClock: (id: string, delta: number) => void
+
+  combatAdd: (c: Omit<Combatant, 'id'>) => void
+  combatRemove: (id: string) => void
+  combatUpdate: (id: string, data: Partial<Combatant>) => void
+  combatAdjustHp: (id: string, delta: number) => void
+  combatMove: (id: string, dir: -1 | 1) => void
+  combatNextTurn: () => void
+  combatEnd: () => void
+
+  addHandout: (h: Omit<Handout, 'id'>) => void
+  updateHandout: (id: string, data: Partial<Handout>) => void
+  deleteHandout: (id: string) => void
+
+  addMapPin: (p: Omit<MapPin, 'id'>) => void
+  updateMapPin: (id: string, data: Partial<MapPin>) => void
+  deleteMapPin: (id: string) => void
+  setTide: (tide: Tide) => void
+
+  addSessionLog: (l: Omit<SessionLog, 'id'>) => void
+  updateSessionLog: (id: string, data: Partial<SessionLog>) => void
+  deleteSessionLog: (id: string) => void
+
+  addTimelineEvent: (e: Omit<TimelineEvent, 'id'>) => void
+  updateTimelineEvent: (id: string, data: Partial<TimelineEvent>) => void
+  deleteTimelineEvent: (id: string) => void
+  moveTimelineEvent: (id: string, dir: -1 | 1) => void
+
+  addScene: (s: Omit<Scene, 'id'>) => void
+  updateScene: (id: string, data: Partial<Scene>) => void
+  deleteScene: (id: string) => void
+  moveScene: (id: string, dir: -1 | 1) => void
+  setSceneIndex: (index: number) => void
+
   updateDisplay: (data: Partial<PlayerDisplay>) => void
 }
-
-const uid = () => Math.random().toString(36).slice(2, 9)
 
 // Fallback defaults if campaign-data.json is absent
 const defaultNPCs: NPC[] = [
@@ -260,12 +328,100 @@ const defaultNotes: SessionNote[] = [
   },
 ]
 
+// L'horloge de la campagne en cours : le rituel de l'Œil du Fond.
+const defaultClocks: CampaignClock[] = [
+  { id: 'clock-solstice', label: 'Solstice', value: 12, showToPlayers: false },
+]
+
+const emptyCombat: CombatState = { round: 1, turnIndex: 0, combatants: [] }
+
+// Le premier document de la campagne : la lettre qui lance l'enquête.
+const defaultHandouts: Handout[] = [
+  {
+    id: 'handout-lettre-maren',
+    title: 'Lettre cachetée — sceau des Valdrek',
+    content: `*Lord Edric est mort. Officiellement de maladie. Je ne le crois pas.*
+
+*Venez ce soir à l'arrière-salle de la taverne du Maelstrom, Île des Plaisirs. Venez seuls, et brûlez cette lettre.*
+
+— M.V.`,
+    imageUrl: '',
+  },
+]
+
+// La chronologie des deux fils de l'intrigue — ce que les joueurs savent
+// n'est pas ce qui s'est vraiment passé.
+const defaultTimeline: TimelineEvent[] = [
+  {
+    id: 'tl-omric',
+    when: 'Il y a 2 ans',
+    title: 'Disparition de Frère Omric',
+    playersKnow: 'Un prêtre respecté du Culte a quitté l\'Île du Temple sans explication.',
+    truth: 'Omric fonde l\'Œil du Fond dans les caves de l\'Île du Temple, accessibles par un passage sous-marin à marée basse.',
+    thread: 'fond',
+  },
+  {
+    id: 'tl-livraison',
+    when: 'Il y a 3 semaines',
+    title: 'Livraison nocturne à l\'Île du Temple',
+    playersKnow: '',
+    truth: 'Cael paie Isla « La Nœud » pour son silence sur une cargaison passée par Roz Fall.',
+    thread: 'valdrek',
+  },
+  {
+    id: 'tl-edric',
+    when: 'Il y a 15 jours',
+    title: 'Mort de Lord Edric Valdrek',
+    playersKnow: 'Mort officiellement de maladie. Maren en doute.',
+    truth: 'Assassiné sur ordre de Cael, via un intermédiaire de la Guilde des Armateurs.',
+    thread: 'valdrek',
+  },
+  {
+    id: 'tl-solstice',
+    when: 'J-12',
+    title: 'Solstice — le rituel de l\'Éveil',
+    playersKnow: '',
+    truth: 'Omric compte « éveiller » le Grand Fond. Les phénomènes étranges vont s\'intensifier à mesure que la date approche.',
+    thread: 'fond',
+  },
+]
+
+// Deux scènes d'exemple pour l'ouverture de la session 1.
+const defaultScenes: Scene[] = [
+  {
+    id: 'scene-lettre',
+    name: 'Ouverture — la lettre',
+    imageUrl: '',
+    audioUrl: '',
+    caption: 'Aberkaer — au lever du jour',
+    overlayText: 'Une lettre cachetée du sceau des Valdrek a été glissée sous votre porte pendant la nuit.',
+  },
+  {
+    id: 'scene-maelstrom',
+    name: 'Taverne du Maelstrom',
+    imageUrl: '',
+    audioUrl: '',
+    caption: 'Taverne du Maelstrom — Île des Plaisirs',
+    overlayText: 'La salle est basse et enfumée. Au fond, une porte entrouverte donne sur l\'arrière-salle.',
+  },
+]
+
 export const useGMStore = create<GMStore>()(
   persist(
     (set) => ({
       npcs: defaultNPCs,
       rules: defaultRules,
       notes: defaultNotes,
+      characters: [],
+      clocks: defaultClocks,
+      combat: emptyCombat,
+      handouts: defaultHandouts,
+      mapPins: [],
+      tide: 'haute',
+      sessionLogs: [],
+      timeline: defaultTimeline,
+      scenes: defaultScenes,
+      sceneIndex: -1,
       display: {
         imageUrl: '',
         caption: '',
@@ -274,6 +430,12 @@ export const useGMStore = create<GMStore>()(
         audioVolume: 0.5,
         overlayText: '',
         showOverlay: false,
+        clocks: [],
+        lastRoll: null,
+        sfx: null,
+        handout: null,
+        map: null,
+        curtain: false,
       },
 
       addNPC: (npc) => set((s) => ({ npcs: [...s.npcs, { ...npc, id: uid() }] })),
@@ -291,6 +453,148 @@ export const useGMStore = create<GMStore>()(
         set((s) => ({ notes: s.notes.map((n) => (n.id === id ? { ...n, ...data } : n)) })),
       deleteNote: (id) => set((s) => ({ notes: s.notes.filter((n) => n.id !== id) })),
 
+      addCharacter: (c) => set((s) => ({ characters: [...s.characters, { ...c, id: uid() }] })),
+      updateCharacter: (id, data) =>
+        set((s) => ({
+          characters: s.characters.map((c) => {
+            if (c.id !== id) return c
+            const merged = { ...c, ...data }
+            // Les stats ont pu changer : on garde HP/Fatigue dans les bornes.
+            merged.hp = clamp(merged.hp, 0, merged.stats.vitalite)
+            merged.fatigue = clamp(merged.fatigue, 0, merged.stats.intelligence)
+            merged.tokens = clamp(merged.tokens, 0, TOKEN_MAX)
+            return merged
+          }),
+        })),
+      deleteCharacter: (id) => set((s) => ({ characters: s.characters.filter((c) => c.id !== id) })),
+      adjustCharacter: (id, field, delta) =>
+        set((s) => ({
+          characters: s.characters.map((c) => {
+            if (c.id !== id) return c
+            if (field === 'hp') return { ...c, hp: clamp(c.hp + delta, 0, c.stats.vitalite) }
+            if (field === 'fatigue')
+              return { ...c, fatigue: clamp(c.fatigue + delta, 0, c.stats.intelligence) }
+            return { ...c, tokens: clamp(c.tokens + delta, 0, TOKEN_MAX) }
+          }),
+        })),
+
+      addClock: (c) => set((s) => ({ clocks: [...s.clocks, { ...c, id: uid() }] })),
+      updateClock: (id, data) =>
+        set((s) => ({ clocks: s.clocks.map((c) => (c.id === id ? { ...c, ...data } : c)) })),
+      deleteClock: (id) => set((s) => ({ clocks: s.clocks.filter((c) => c.id !== id) })),
+      adjustClock: (id, delta) =>
+        set((s) => ({
+          clocks: s.clocks.map((c) => (c.id === id ? { ...c, value: Math.max(0, c.value + delta) } : c)),
+        })),
+
+      combatAdd: (c) =>
+        set((s) => ({ combat: { ...s.combat, combatants: [...s.combat.combatants, { ...c, id: uid() }] } })),
+      combatRemove: (id) =>
+        set((s) => {
+          const idx = s.combat.combatants.findIndex((c) => c.id === id)
+          const combatants = s.combat.combatants.filter((c) => c.id !== id)
+          // Le tour courant ne doit pas sauter quand on retire un combattant.
+          let turnIndex = s.combat.turnIndex
+          if (idx !== -1 && idx < turnIndex) turnIndex -= 1
+          if (turnIndex >= combatants.length) turnIndex = 0
+          return { combat: { ...s.combat, combatants, turnIndex } }
+        }),
+      combatUpdate: (id, data) =>
+        set((s) => ({
+          combat: {
+            ...s.combat,
+            combatants: s.combat.combatants.map((c) => (c.id === id ? { ...c, ...data } : c)),
+          },
+        })),
+      combatAdjustHp: (id, delta) =>
+        set((s) => {
+          const target = s.combat.combatants.find((c) => c.id === id)
+          if (!target) return {}
+          const hp = clamp(target.hp + delta, 0, target.maxHp)
+          return {
+            combat: {
+              ...s.combat,
+              combatants: s.combat.combatants.map((c) => (c.id === id ? { ...c, hp } : c)),
+            },
+            // Un PJ blessé en combat l'est aussi sur sa fiche.
+            characters: target.characterId
+              ? s.characters.map((ch) =>
+                  ch.id === target.characterId ? { ...ch, hp: clamp(hp, 0, ch.stats.vitalite) } : ch
+                )
+              : s.characters,
+          }
+        }),
+      combatMove: (id, dir) =>
+        set((s) => {
+          const list = [...s.combat.combatants]
+          const i = list.findIndex((c) => c.id === id)
+          const j = i + dir
+          if (i < 0 || j < 0 || j >= list.length) return {}
+          ;[list[i], list[j]] = [list[j], list[i]]
+          return { combat: { ...s.combat, combatants: list } }
+        }),
+      combatNextTurn: () =>
+        set((s) => {
+          const n = s.combat.combatants.length
+          if (n === 0) return {}
+          const next = s.combat.turnIndex + 1
+          return {
+            combat: {
+              ...s.combat,
+              turnIndex: next % n,
+              round: next >= n ? s.combat.round + 1 : s.combat.round,
+            },
+          }
+        }),
+      combatEnd: () => set(() => ({ combat: emptyCombat })),
+
+      addHandout: (h) => set((s) => ({ handouts: [...s.handouts, { ...h, id: uid() }] })),
+      updateHandout: (id, data) =>
+        set((s) => ({ handouts: s.handouts.map((h) => (h.id === id ? { ...h, ...data } : h)) })),
+      deleteHandout: (id) => set((s) => ({ handouts: s.handouts.filter((h) => h.id !== id) })),
+
+      addMapPin: (p) => set((s) => ({ mapPins: [...s.mapPins, { ...p, id: uid() }] })),
+      updateMapPin: (id, data) =>
+        set((s) => ({ mapPins: s.mapPins.map((p) => (p.id === id ? { ...p, ...data } : p)) })),
+      deleteMapPin: (id) => set((s) => ({ mapPins: s.mapPins.filter((p) => p.id !== id) })),
+      setTide: (tide) => set(() => ({ tide })),
+
+      addSessionLog: (l) => set((s) => ({ sessionLogs: [...s.sessionLogs, { ...l, id: uid() }] })),
+      updateSessionLog: (id, data) =>
+        set((s) => ({ sessionLogs: s.sessionLogs.map((l) => (l.id === id ? { ...l, ...data } : l)) })),
+      deleteSessionLog: (id) =>
+        set((s) => ({ sessionLogs: s.sessionLogs.filter((l) => l.id !== id) })),
+
+      addTimelineEvent: (e) => set((s) => ({ timeline: [...s.timeline, { ...e, id: uid() }] })),
+      updateTimelineEvent: (id, data) =>
+        set((s) => ({ timeline: s.timeline.map((e) => (e.id === id ? { ...e, ...data } : e)) })),
+      deleteTimelineEvent: (id) => set((s) => ({ timeline: s.timeline.filter((e) => e.id !== id) })),
+      moveTimelineEvent: (id, dir) =>
+        set((s) => {
+          const list = [...s.timeline]
+          const i = list.findIndex((e) => e.id === id)
+          const j = i + dir
+          if (i < 0 || j < 0 || j >= list.length) return {}
+          ;[list[i], list[j]] = [list[j], list[i]]
+          return { timeline: list }
+        }),
+
+      addScene: (scene) => set((s) => ({ scenes: [...s.scenes, { ...scene, id: uid() }] })),
+      updateScene: (id, data) =>
+        set((s) => ({ scenes: s.scenes.map((sc) => (sc.id === id ? { ...sc, ...data } : sc)) })),
+      deleteScene: (id) =>
+        set((s) => ({ scenes: s.scenes.filter((sc) => sc.id !== id), sceneIndex: -1 })),
+      moveScene: (id, dir) =>
+        set((s) => {
+          const list = [...s.scenes]
+          const i = list.findIndex((sc) => sc.id === id)
+          const j = i + dir
+          if (i < 0 || j < 0 || j >= list.length) return {}
+          ;[list[i], list[j]] = [list[j], list[i]]
+          return { scenes: list, sceneIndex: -1 }
+        }),
+      setSceneIndex: (index) => set(() => ({ sceneIndex: index })),
+
       updateDisplay: (data) => set((s) => ({ display: { ...s.display, ...data } })),
     }),
     {
@@ -301,6 +605,15 @@ export const useGMStore = create<GMStore>()(
         npcs: state.npcs,
         rules: state.rules,
         notes: state.notes,
+        characters: state.characters,
+        clocks: state.clocks,
+        combat: state.combat,
+        handouts: state.handouts,
+        mapPins: state.mapPins,
+        tide: state.tide,
+        sessionLogs: state.sessionLogs,
+        timeline: state.timeline,
+        scenes: state.scenes,
       }),
     }
   )

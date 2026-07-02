@@ -1,32 +1,125 @@
-# React + TypeScript + Vite
+# Aberkaer — Compagnon de table pour JdR
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Application locale qui remplace le papier à la table de jeu : un **écran MJ** (PNJ,
+règles, notes, contrôle de la scène) et un **écran joueurs** (image d'ambiance,
+texte narratif, musique) synchronisés en temps réel.
 
-Currently, two official plugins are available:
+> Le plan complet du projet (bugs connus, phases à venir) est dans [ROADMAP.md](ROADMAP.md).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Démarrage rapide
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+./start.sh          # installe et lance en mode dev
+./start.sh --prod   # version optimisée (build + preview)
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Ou à la main :
+
+```bash
+npm install
+npm run dev     # http://localhost:5173
+```
+
+- **Vue MJ** → `http://localhost:5173/gm`
+- **Vue joueurs** → `http://localhost:5173/player`
+
+### Vue joueurs sur TV, tablette ou téléphone
+
+Le serveur écoute sur le réseau local : n'importe quel appareil connecté au même
+Wi-Fi peut ouvrir la vue joueurs. Dans l'onglet « Écran joueurs » de la vue MJ,
+le bouton **⌗ QR code** affiche l'adresse à saisir (ex. `http://192.168.1.42:5173/player`)
+et un QR code à scanner. La scène (image, texte, musique) se synchronise en direct
+via le serveur (SSE, reconnexion automatique) ; un écran ouvert en cours de partie
+rattrape immédiatement l'état courant. Sans serveur, un repli `BroadcastChannel`
+couvre les onglets d'un même navigateur.
+
+## Utilisation en jeu
+
+| Onglet MJ | Rôle |
+|-----------|------|
+| 🖥 Écran joueurs | Pousser image, légende, texte narratif et musique vers la vue joueurs |
+| 🎭 PJ | Fiches des personnages : 6 stats + mods auto, HP, Fatigue, Jetons de Destin, Vérités |
+| 🎲 Dés | Jet simple (d20 + mod + Vérité vs DC), duel opposé, assistant magie avec coût en Fatigue |
+| ⚔️ Combat | Ordre des tours, rounds, HP (reflétés sur les fiches PJ), import PJ/PNJ en un clic |
+| ⏳ Horloges | Comptes à rebours de campagne (ex. « Solstice — J-12 »), affichables aux joueurs |
+| 🗺 Carte | Les 7 îles d'Aberkaer : repères au clic, marée haute/basse, version joueurs poussable |
+| 📜 Documents | Lettres et documents en Markdown, affichés en « parchemin » sur l'écran joueurs |
+| 🎨 Médias | Bibliothèque locale d'images et de sons (dossier `media/`) — zéro internet requis |
+| 📔 Campagne | Journal de sessions, timeline de l'intrigue (su des joueurs vs vérité MJ), générateurs |
+| 👤 PNJ | Fiches PNJ (+ vue 🕸 Relations) : stats, description publique, **secrets MJ seul** |
+| 📖 Règles | Les règles de la maison (d20, Vérités, Jetons de Destin, magie/Fatigue…) |
+| 📝 Notes | Objectifs, hooks et rappels de la session |
+
+Astuces :
+- Un PNJ avec une image apparaît en bouton dans « Écran joueurs » : un clic envoie
+  son portrait et son nom aux joueurs.
+- Si la musique ne démarre pas côté joueurs (blocage autoplay du navigateur),
+  un bouton « Toucher pour activer le son » s'affiche sur la vue joueurs.
+- Dans l'onglet 🎲, coche « Montrer les jets aux joueurs » pour que chaque jet
+  s'anime en grand sur l'écran joueurs (résultat, réussite/échec, critiques).
+- Après un jet, un PJ peut dépenser un Jeton de Destin : relance ou +5, décompté
+  automatiquement de sa fiche.
+- Dans 🎨 Médias : « ▶ Ambiance » joue en boucle avec **fondu enchaîné** quand tu
+  changes de piste ; « 💥 Effet » joue un son une fois par-dessus l'ambiance
+  (tonnerre, cloche, porte qui grince).
+- Prépare tes fichiers dans `media/` (ou uploade-les depuis l'onglet) : tout est
+  servi en local, l'outil fonctionne sans connexion internet.
+- **`Ctrl+K`** ouvre la recherche globale : « Omric » retrouve sa fiche, ses
+  secrets, les notes et les événements de timeline qui le mentionnent.
+- Écris `[[Frère Omric]]` dans une note ou un document : le nom devient un lien
+  qui ouvre la recherche.
+- **Plusieurs campagnes** : le sélecteur dans l'en-tête crée, change ou archive
+  une campagne (un fichier JSON chacune dans `campaigns/`, backups séparés).
+- **File de scènes** (onglet Écran joueurs) : prépare tes scènes (image + son +
+  texte) avant la session, déroule-les pendant la partie.
+- Sur la tablette des joueurs : « Ajouter à l'écran d'accueil » ouvre la vue
+  joueurs en plein écran kiosque (bouton ⛶ sinon).
+
+### Raccourcis clavier (écran MJ, hors champs de saisie)
+
+| Touche | Action |
+|--------|--------|
+| `B` | Rideau — coupe image et son, logo Aberkaer (panique) |
+| `Espace` | Play/pause de l'ambiance sonore |
+| `→` / `←` | Scène suivante / précédente de la file |
+| `1`–`9` | Jouer directement la scène N |
+| `Ctrl+K` | Recherche globale |
+
+## Données et sauvegardes
+
+- Tout est persisté dans **`campaign-data.json`** à la racine (avec repli
+  `localStorage` si le serveur ne répond pas).
+- Le serveur garde des **snapshots automatiques** dans `backups/`
+  (au plus un toutes les 10 minutes, les 20 derniers sont conservés).
+- Boutons **⬇ Exporter / ⬆ Importer** dans l'en-tête MJ pour sauvegarder ou
+  restaurer la campagne en JSON.
+- La variable d'environnement `ABERKAER_DATA_FILE` permet de pointer vers un
+  autre fichier de données (utilisée par les tests).
+
+## Développement
+
+```bash
+npm run dev       # serveur de dev avec HMR
+npm run build     # typecheck (tsc) + build de production
+npm start         # build + sert la version de production (port 5173)
+npm run lint      # oxlint
+npm test          # tests de fumée Playwright
+```
+
+Stack : React 19 · Vite · Tailwind CSS 4 · Zustand (persist) · TypeScript.
+
+Structure :
+
+```
+src/
+  views/GMView.tsx        Écran MJ (onglets + réponse au handshake)
+  views/PlayerView.tsx    Écran joueurs plein écran (fondu au noir entre scènes)
+  components/gm/          Panneaux MJ (affichage, PNJ, règles, notes, export/import, QR)
+  store/gmStore.ts        État global + données par défaut de la campagne
+  store/fileStorage.ts    Persistance hybride fichier/localStorage (debounce)
+  hooks/useTableSync.ts   Sync MJ → joueurs : serveur (SSE) + repli BroadcastChannel
+  hooks/useBroadcast.ts   Canal BroadcastChannel bas niveau
+vite.config.ts            API locale : /api/campaign (persistance + backups),
+                          /api/display et /api/events (scène en direct, SSE),
+                          /api/info (adresses réseau pour le QR code)
+```
