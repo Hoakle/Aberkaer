@@ -1,6 +1,7 @@
 import { useGMStore } from '../../store/gmStore'
 import { usePushDisplay } from '../../hooks/useTableSync'
 import PlayerAccess from './PlayerAccess'
+import SceneQueue from './SceneQueue'
 
 const PRESET_IMAGES = [
   { label: 'Taverne', url: 'https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=1920&q=80' },
@@ -183,6 +184,8 @@ export default function DisplayControl() {
           </div>
         )}
       </div>
+
+      <SceneQueue />
 
       <PlayerAccess />
     </div>

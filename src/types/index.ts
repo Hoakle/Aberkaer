@@ -108,6 +108,17 @@ export interface MapPin {
   showToPlayers: boolean
 }
 
+// Une scène préparée à l'avance : image + son + texte, jouée en un clic
+// (ou au clavier : →, ←, 1–9).
+export interface Scene {
+  id: string
+  name: string
+  imageUrl: string
+  audioUrl: string
+  caption: string
+  overlayText: string
+}
+
 // ─── Écran joueurs ───────────────────────────────────────────────────────────
 
 export interface PlayerClock {
@@ -131,6 +142,8 @@ export interface PlayerDisplay {
   handout: { title: string; content: string; imageUrl: string } | null
   // Carte d'Aberkaer avec les repères visibles des joueurs
   map: { visible: boolean; tide: Tide; pins: { x: number; y: number; label: string }[] } | null
+  // Mode rideau : coupe image et son, affiche le logo (bouton panique)
+  curtain: boolean
 }
 
 export type BroadcastMessage =

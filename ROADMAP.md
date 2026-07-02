@@ -18,7 +18,10 @@ et toutes les données de campagne vivent dans le dépôt, versionnées et sauve
 | 2 | Outils de jeu : fiches PJ, dés, magie/Fatigue, tracker combat, horloges | ✅ Terminée |
 | 3 | Immersion : médias locaux, soundboard, handouts, carte des 7 îles, Markdown | ✅ Terminée |
 | 4 | Campagne : multi-campagnes, journal, recherche, liens croisés, générateurs | ✅ Terminée |
-| 5 | Confort : raccourcis, mode panique, file de scènes, PWA | ⬜ À faire |
+| 5 | Confort : raccourcis, mode rideau, file de scènes, PWA | ✅ Terminée |
+
+**🏁 Les 6 phases du plan initial sont terminées.** La suite se décide à la table :
+jouer avec l'outil, noter ce qui manque ou ce qui gêne, et itérer.
 
 Note : B2 (sync mono-navigateur) est listé dans les bugs mais se corrige en phase 1
 (WebSocket), pas en phase 0.
@@ -121,11 +124,12 @@ C'est ici que l'app cesse d'être un « afficheur » et devient l'outil de jeu. 
 
 ## Phase 5 — Confort et finitions
 
-- [ ] **Raccourcis clavier MJ** : `1–7` = pousser l'ambiance d'une île, `Espace` = play/pause, `B` = écran noir immédiat (le « oh non, ils ne devaient pas voir ça »).
-- [ ] **Mode panique / rideau** : un bouton qui coupe image + son et affiche le logo Aberkaer.
-- [ ] **File d'attente de scènes** : préparer avant la session la liste ordonnée image+son+texte, puis avancer avec `→` pendant la partie.
-- [ ] **PWA / plein écran kiosque** pour la tablette-joueurs.
-- [ ] **Accessibilité et petits écrans** : l'écran MJ utilisable sur un portable 13".
+- [x] **Raccourcis clavier MJ** (`useScenePlayer.ts`) : `B` = rideau immédiat, `Espace` = play/pause de l'ambiance, `→`/`←` = scène suivante/précédente, `1–9` = jouer la scène N de la file. Inactifs dans les champs de saisie. (Le `1–7` = ambiance d'île du plan initial a été remplacé par « scène N » : plus général, les scènes couvrent le cas.)
+- [x] **Mode panique / rideau** : bouton ⏹ dans l'en-tête MJ (ou touche `B`) — fondu au noir avec le logo Aberkaer côté joueurs, son coupé. Second appui : tout revient.
+- [x] **File d'attente de scènes** (`SceneQueue.tsx`, onglet Écran joueurs) : liste ordonnée nom + image + ambiance + légende + texte, préparée avant la session, jouée au clic ou au clavier. Ambiance vide = l'ambiance en cours continue. 2 scènes d'exemple (la lettre, le Maelstrom).
+- [x] **PWA / plein écran kiosque** : `manifest.webmanifest` (start_url `/player`, display fullscreen) — « Ajouter à l'écran d'accueil » sur la tablette ouvre la vue joueurs en kiosque ; bouton ⛶ discret sur la vue joueurs.
+- [x] **Petits écrans** : la barre latérale MJ passe en icônes seules sous 1024 px.
+- 4 tests Playwright (rideau au clavier, garde de saisie, file de scènes clic + clavier, manifest).
 
 ---
 

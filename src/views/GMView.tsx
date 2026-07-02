@@ -14,7 +14,8 @@ import MediaPanel from '../components/gm/MediaPanel'
 import CampaignPanel from '../components/gm/CampaignPanel'
 import SearchPalette from '../components/gm/SearchPalette'
 import { useBroadcastReceiver, useBroadcastSender } from '../hooks/useBroadcast'
-import { useAdoptServerDisplay } from '../hooks/useTableSync'
+import { useAdoptServerDisplay, usePushDisplay } from '../hooks/useTableSync'
+import { useGMShortcuts } from '../hooks/useScenePlayer'
 import { useGMStore } from '../store/gmStore'
 
 type Tab =
@@ -51,6 +52,17 @@ export default function GMView() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const send = useBroadcastSender()
+  const pushDisplay = usePushDisplay()
+  const curtain = useGMStore((s) => s.display.curtain)
+
+  // Raccourcis : B rideau, Espace play/pause, ←/→ scènes, 1–9 scène directe
+  useGMShortcuts()
+
+  const toggleCurtain = () => {
+    const patch = { curtain: !useGMStore.getState().display.curtain }
+    useGMStore.getState().updateDisplay(patch)
+    pushDisplay(patch)
+  }
 
   // Ctrl+K / Cmd+K ouvre la recherche ; les [[wikilinks]] aussi.
   useEffect(() => {
@@ -99,7 +111,19 @@ export default function GMView() {
           <span className="text-amber-500 font-semibold tracking-wider text-sm uppercase">Aberkaer</span>
           <span className="text-stone-600 text-xs">— Écran de Maître de Jeu</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={toggleCurtain}
+            title="Rideau : coupe image et son côté joueurs (raccourci : B)"
+            aria-pressed={curtain}
+            className={`text-xs px-3 py-1 rounded border font-medium transition-colors ${
+              curtain
+                ? 'border-red-700 bg-red-950/60 text-red-300'
+                : 'border-stone-700 text-stone-400 hover:text-red-300 hover:border-red-900'
+            }`}
+          >
+            {curtain ? '⏹ Rideau baissé — relever' : '⏹ Rideau'}
+          </button>
           <button
             onClick={() => {
               setSearchQuery('')
@@ -124,11 +148,13 @@ export default function GMView() {
 
       <div className="flex flex-1 min-h-0">
         {/* Sidebar tabs */}
-        <nav className="w-36 flex-shrink-0 border-r border-stone-800 bg-stone-900/40 flex flex-col py-2 gap-1">
+        {/* Compacte (icônes seules) sous lg — utilisable sur un portable 13" */}
+        <nav className="w-12 lg:w-36 flex-shrink-0 border-r border-stone-800 bg-stone-900/40 flex flex-col py-2 gap-1 overflow-y-auto">
           {TABS.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
+              title={t.label}
               className={`flex items-center gap-2 px-3 py-2.5 text-sm transition-colors rounded mx-1 text-left ${
                 tab === t.id
                   ? 'bg-stone-800 text-stone-100 border border-stone-700'
@@ -136,7 +162,7 @@ export default function GMView() {
               }`}
             >
               <span>{t.icon}</span>
-              <span>{t.label}</span>
+              <span className="hidden lg:inline">{t.label}</span>
             </button>
           ))}
         </nav>

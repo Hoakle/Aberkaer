@@ -22,10 +22,11 @@ export default function PlayerView() {
     }
   })
 
-  // Ambiance en boucle (crossfade) + effets one-shot
+  // Ambiance en boucle (crossfade) + effets one-shot.
+  // Le rideau coupe aussi le son.
   const { blocked: audioBlocked, unlock } = useAudioLayers(
     display.audioUrl,
-    display.audioPlaying,
+    display.audioPlaying && !display.curtain,
     display.audioVolume,
     display.sfx
   )
@@ -130,8 +131,30 @@ export default function PlayerView() {
         </div>
       )}
 
+      {/* Rideau : noir total + logo, par-dessus tout */}
+      <div
+        data-curtain={display.curtain ? 'down' : 'up'}
+        className={`absolute inset-0 z-20 bg-black flex flex-col items-center justify-center gap-4 transition-opacity duration-500 ${
+          display.curtain ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+      >
+        <div className="text-4xl tracking-[0.3em] text-stone-800 font-light uppercase">Aberkaer</div>
+      </div>
+
+      {/* Plein écran (tablette/TV) — discret */}
+      <button
+        onClick={() => {
+          if (document.fullscreenElement) void document.exitFullscreen()
+          else void document.documentElement.requestFullscreen().catch(() => {})
+        }}
+        title="Plein écran"
+        className="absolute bottom-4 left-4 z-30 text-stone-500 opacity-20 hover:opacity-80 transition-opacity text-lg"
+      >
+        ⛶
+      </button>
+
       {/* Connection status (top right, very subtle) */}
-      <div className={`absolute top-4 right-4 w-1.5 h-1.5 rounded-full transition-colors ${connected ? 'bg-green-500' : 'bg-stone-700'}`} />
+      <div className={`absolute top-4 right-4 z-30 w-1.5 h-1.5 rounded-full transition-colors ${connected ? 'bg-green-500' : 'bg-stone-700'}`} />
     </div>
   )
 }

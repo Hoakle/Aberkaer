@@ -17,6 +17,7 @@ import type {
   Tide,
   SessionLog,
   TimelineEvent,
+  Scene,
 } from '../types'
 
 interface GMStore {
@@ -31,6 +32,8 @@ interface GMStore {
   tide: Tide
   sessionLogs: SessionLog[]
   timeline: TimelineEvent[]
+  scenes: Scene[]
+  sceneIndex: number // scène courante de la file (-1 = aucune)
   display: PlayerDisplay
 
   addNPC: (npc: Omit<NPC, 'id'>) => void
@@ -81,6 +84,12 @@ interface GMStore {
   updateTimelineEvent: (id: string, data: Partial<TimelineEvent>) => void
   deleteTimelineEvent: (id: string) => void
   moveTimelineEvent: (id: string, dir: -1 | 1) => void
+
+  addScene: (s: Omit<Scene, 'id'>) => void
+  updateScene: (id: string, data: Partial<Scene>) => void
+  deleteScene: (id: string) => void
+  moveScene: (id: string, dir: -1 | 1) => void
+  setSceneIndex: (index: number) => void
 
   updateDisplay: (data: Partial<PlayerDisplay>) => void
 }
@@ -377,6 +386,26 @@ const defaultTimeline: TimelineEvent[] = [
   },
 ]
 
+// Deux scènes d'exemple pour l'ouverture de la session 1.
+const defaultScenes: Scene[] = [
+  {
+    id: 'scene-lettre',
+    name: 'Ouverture — la lettre',
+    imageUrl: '',
+    audioUrl: '',
+    caption: 'Aberkaer — au lever du jour',
+    overlayText: 'Une lettre cachetée du sceau des Valdrek a été glissée sous votre porte pendant la nuit.',
+  },
+  {
+    id: 'scene-maelstrom',
+    name: 'Taverne du Maelstrom',
+    imageUrl: '',
+    audioUrl: '',
+    caption: 'Taverne du Maelstrom — Île des Plaisirs',
+    overlayText: 'La salle est basse et enfumée. Au fond, une porte entrouverte donne sur l\'arrière-salle.',
+  },
+]
+
 export const useGMStore = create<GMStore>()(
   persist(
     (set) => ({
@@ -391,6 +420,8 @@ export const useGMStore = create<GMStore>()(
       tide: 'haute',
       sessionLogs: [],
       timeline: defaultTimeline,
+      scenes: defaultScenes,
+      sceneIndex: -1,
       display: {
         imageUrl: '',
         caption: '',
@@ -404,6 +435,7 @@ export const useGMStore = create<GMStore>()(
         sfx: null,
         handout: null,
         map: null,
+        curtain: false,
       },
 
       addNPC: (npc) => set((s) => ({ npcs: [...s.npcs, { ...npc, id: uid() }] })),
@@ -547,6 +579,22 @@ export const useGMStore = create<GMStore>()(
           return { timeline: list }
         }),
 
+      addScene: (scene) => set((s) => ({ scenes: [...s.scenes, { ...scene, id: uid() }] })),
+      updateScene: (id, data) =>
+        set((s) => ({ scenes: s.scenes.map((sc) => (sc.id === id ? { ...sc, ...data } : sc)) })),
+      deleteScene: (id) =>
+        set((s) => ({ scenes: s.scenes.filter((sc) => sc.id !== id), sceneIndex: -1 })),
+      moveScene: (id, dir) =>
+        set((s) => {
+          const list = [...s.scenes]
+          const i = list.findIndex((sc) => sc.id === id)
+          const j = i + dir
+          if (i < 0 || j < 0 || j >= list.length) return {}
+          ;[list[i], list[j]] = [list[j], list[i]]
+          return { scenes: list, sceneIndex: -1 }
+        }),
+      setSceneIndex: (index) => set(() => ({ sceneIndex: index })),
+
       updateDisplay: (data) => set((s) => ({ display: { ...s.display, ...data } })),
     }),
     {
@@ -565,6 +613,7 @@ export const useGMStore = create<GMStore>()(
         tide: state.tide,
         sessionLogs: state.sessionLogs,
         timeline: state.timeline,
+        scenes: state.scenes,
       }),
     }
   )

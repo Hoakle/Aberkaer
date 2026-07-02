@@ -70,6 +70,20 @@ Astuces :
   qui ouvre la recherche.
 - **Plusieurs campagnes** : le sélecteur dans l'en-tête crée, change ou archive
   une campagne (un fichier JSON chacune dans `campaigns/`, backups séparés).
+- **File de scènes** (onglet Écran joueurs) : prépare tes scènes (image + son +
+  texte) avant la session, déroule-les pendant la partie.
+- Sur la tablette des joueurs : « Ajouter à l'écran d'accueil » ouvre la vue
+  joueurs en plein écran kiosque (bouton ⛶ sinon).
+
+### Raccourcis clavier (écran MJ, hors champs de saisie)
+
+| Touche | Action |
+|--------|--------|
+| `B` | Rideau — coupe image et son, logo Aberkaer (panique) |
+| `Espace` | Play/pause de l'ambiance sonore |
+| `→` / `←` | Scène suivante / précédente de la file |
+| `1`–`9` | Jouer directement la scène N |
+| `Ctrl+K` | Recherche globale |
 
 ## Données et sauvegardes
 

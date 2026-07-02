@@ -12,6 +12,7 @@ import type {
   Tide,
   SessionLog,
   TimelineEvent,
+  Scene,
 } from '../../types'
 
 interface CampaignExport {
@@ -26,6 +27,7 @@ interface CampaignExport {
   tide: Tide
   sessionLogs: SessionLog[]
   timeline: TimelineEvent[]
+  scenes: Scene[]
 }
 
 // Accepte notre export direct { npcs, rules, notes, ... } mais aussi le format
@@ -53,6 +55,7 @@ function parseCampaignFile(raw: string): CampaignExport | null {
       tide: data.tide === 'basse' ? 'basse' : 'haute',
       sessionLogs: Array.isArray(data.sessionLogs) ? data.sessionLogs : [],
       timeline: Array.isArray(data.timeline) ? data.timeline : [],
+      scenes: Array.isArray(data.scenes) ? data.scenes : [],
     }
   } catch {
     return null
@@ -111,12 +114,12 @@ export default function CampaignMenu() {
 
   const exportCampaign = () => {
     const {
-      npcs, rules, notes, characters, clocks, combat, handouts, mapPins, tide, sessionLogs, timeline,
+      npcs, rules, notes, characters, clocks, combat, handouts, mapPins, tide, sessionLogs, timeline, scenes,
     } = useGMStore.getState()
     const blob = new Blob(
       [
         JSON.stringify(
-          { npcs, rules, notes, characters, clocks, combat, handouts, mapPins, tide, sessionLogs, timeline },
+          { npcs, rules, notes, characters, clocks, combat, handouts, mapPins, tide, sessionLogs, timeline, scenes },
           null,
           2
         ),
@@ -153,6 +156,8 @@ export default function CampaignMenu() {
       tide: parsed.tide,
       sessionLogs: parsed.sessionLogs,
       timeline: parsed.timeline,
+      scenes: parsed.scenes,
+      sceneIndex: -1,
     })
     flash('✓ Campagne importée')
   }
