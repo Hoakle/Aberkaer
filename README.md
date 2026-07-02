@@ -42,6 +42,9 @@ couvre les onglets d'un même navigateur.
 | 🎲 Dés | Jet simple (d20 + mod + Vérité vs DC), duel opposé, assistant magie avec coût en Fatigue |
 | ⚔️ Combat | Ordre des tours, rounds, HP (reflétés sur les fiches PJ), import PJ/PNJ en un clic |
 | ⏳ Horloges | Comptes à rebours de campagne (ex. « Solstice — J-12 »), affichables aux joueurs |
+| 🗺 Carte | Les 7 îles d'Aberkaer : repères au clic, marée haute/basse, version joueurs poussable |
+| 📜 Documents | Lettres et documents en Markdown, affichés en « parchemin » sur l'écran joueurs |
+| 🎨 Médias | Bibliothèque locale d'images et de sons (dossier `media/`) — zéro internet requis |
 | 👤 PNJ | Fiches PNJ : stats, description publique, **secrets visibles du MJ seul** |
 | 📖 Règles | Les règles de la maison (d20, Vérités, Jetons de Destin, magie/Fatigue…) |
 | 📝 Notes | Objectifs, hooks et rappels de la session |
@@ -55,6 +58,11 @@ Astuces :
   s'anime en grand sur l'écran joueurs (résultat, réussite/échec, critiques).
 - Après un jet, un PJ peut dépenser un Jeton de Destin : relance ou +5, décompté
   automatiquement de sa fiche.
+- Dans 🎨 Médias : « ▶ Ambiance » joue en boucle avec **fondu enchaîné** quand tu
+  changes de piste ; « 💥 Effet » joue un son une fois par-dessus l'ambiance
+  (tonnerre, cloche, porte qui grince).
+- Prépare tes fichiers dans `media/` (ou uploade-les depuis l'onglet) : tout est
+  servi en local, l'outil fonctionne sans connexion internet.
 
 ## Données et sauvegardes
 

@@ -16,7 +16,7 @@ et toutes les données de campagne vivent dans le dépôt, versionnées et sauve
 | 0 | Assainir les fondations (bugs B1, B3–B8, backups, serveur preview, README, tests) | ✅ Terminée |
 | 1 | Multi-écrans : sync serveur (SSE), QR code, transitions | ✅ Terminée |
 | 2 | Outils de jeu : fiches PJ, dés, magie/Fatigue, tracker combat, horloges | ✅ Terminée |
-| 3 | Immersion : médias locaux, soundboard, handouts, carte des 7 îles, Markdown | ⬜ À faire |
+| 3 | Immersion : médias locaux, soundboard, handouts, carte des 7 îles, Markdown | ✅ Terminée |
 | 4 | Campagne : multi-campagnes, journal, recherche, liens croisés, générateurs | ⬜ À faire |
 | 5 | Confort : raccourcis, mode panique, file de scènes, PWA | ⬜ À faire |
 
@@ -49,8 +49,7 @@ Note : B2 (sync mono-navigateur) est listé dans les bugs mais se corrige en pha
 | B9 | Pas de sauvegarde de secours | Un seul `campaign-data.json`, écrasé à chaque écriture. Une mauvaise manip = campagne perdue. Aucun export/import. |
 | B10 | Contenus presets externes | Images Unsplash et MP3 SoundHelix : sans internet le soir de la partie, plus d'ambiance. Tout doit pouvoir être local. |
 
-> **Mise à jour (phases 0 et 1)** : B1–B9 sont corrigés. Reste **B10**
-> (→ phase 3, bibliothèque de médias locale).
+> **Mise à jour (phases 0, 1 et 3)** : les 10 bugs B1–B10 sont corrigés.
 
 ---
 
@@ -103,11 +102,12 @@ C'est ici que l'app cesse d'être un « afficheur » et devient l'outil de jeu. 
 
 ## Phase 3 — Immersion : médias et documents
 
-- [ ] **Bibliothèque de médias locale** : upload d'images et de fichiers audio depuis l'écran MJ, stockés dans `media/` et servis par le serveur local. Grille de vignettes avec tags (lieu, PNJ, ambiance). Fini les URLs à coller et la dépendance à internet (règle B10).
-- [ ] **Soundboard** : deux couches audio — ambiance en boucle (existant) + effets one-shot (coup de tonnerre, cloche, porte qui grince) avec fondu enchaîné entre deux ambiances.
-- [ ] **Documents joueurs (handouts)** : lettres, cartes au trésor, notes trouvées — rédigés en Markdown ou images, poussés sur l'écran joueurs avec un rendu « parchemin ». La lettre de Maren Valdrek de la session 1 en sera le premier cas d'usage.
-- [ ] **Carte interactive d'Aberkaer** : les 7 îles en SVG/image avec pins (lieux, PNJ, rumeurs) côté MJ ; version « ce que les joueurs savent » poussable sur l'écran joueurs. Bonus : indicateur de marée (les chemins de marée basse font partie du jeu).
-- [ ] **Rendu Markdown partout** (règles, notes, descriptions, handouts) — tenir enfin la promesse du libellé.
+- [x] **Bibliothèque de médias locale** (`MediaPanel.tsx` + API `/api/media`) : upload d'images et de sons depuis l'onglet 🎨, stockés dans `media/` (gitignoré, surchargeable via `ABERKAER_MEDIA_DIR`) et servis par le serveur local sous `/media/…`. Grille de vignettes avec filtre, actions directes « Afficher / Ambiance / Effet ». Corrige B10 : plus aucune dépendance à internet. (Les tags sont remis à plus tard — le filtre par nom suffit pour l'instant.)
+- [x] **Soundboard** (`useAudioLayers.ts`) : deux couches audio — ambiance en boucle avec **fondu enchaîné 1,2 s** entre deux pistes, + effets one-shot par-dessus (`display.sfx`, un nouvel id = une lecture). Gestion de l'autoplay bloqué conservée.
+- [x] **Documents joueurs (handouts)** (`HandoutsPanel.tsx`) : rédigés en Markdown (+ image optionnelle), aperçu parchemin côté MJ, « Montrer aux joueurs » = overlay parchemin sur l'écran joueurs. La lettre de Maren Valdrek est le document par défaut.
+- [x] **Carte interactive d'Aberkaer** (`AberkaerMap.tsx` + `MapPanel.tsx`) : les 7 îles en SVG (ponts, chemins de marée basse en pointillés), repères ajoutés au clic (label, note MJ, visibilité), toggle marée haute/basse, version joueurs (repères visibles uniquement) poussée en direct.
+- [x] **Rendu Markdown** (`Markdown.tsx`, lib `marked`) : notes et documents. Choix assumé : les règles restent en texte préformaté — leurs tableaux alignés (DC, scores) seraient cassés par Markdown.
+- 5 tests Playwright (API médias, push d'image, parchemin, carte/marée/repère, markdown).
 
 ## Phase 4 — Gestion de campagne longue durée
 

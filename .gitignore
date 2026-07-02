@@ -27,3 +27,4 @@ dist-ssr
 backups/
 test-results/
 playwright-report/
+media/

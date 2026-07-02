@@ -127,6 +127,94 @@ const displayMiddleware: Connect.NextHandleFunction = (req, res: ServerResponse)
   }
 }
 
+// ─── Bibliothèque de médias locale ───────────────────────────────────────────
+// Images et sons de la table, stockés dans media/ : plus besoin d'internet
+// le soir de la partie.
+
+const MEDIA_DIR = process.env.ABERKAER_MEDIA_DIR
+  ? path.resolve(process.env.ABERKAER_MEDIA_DIR)
+  : path.resolve(__dirname, 'media')
+
+const MEDIA_MIME: Record<string, string> = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+  '.mp3': 'audio/mpeg',
+  '.ogg': 'audio/ogg',
+  '.wav': 'audio/wav',
+  '.m4a': 'audio/mp4',
+  '.flac': 'audio/flac',
+}
+
+function mediaKind(name: string): 'image' | 'audio' | null {
+  const mime = MEDIA_MIME[path.extname(name).toLowerCase()]
+  if (!mime) return null
+  return mime.startsWith('image/') ? 'image' : 'audio'
+}
+
+const sanitizeMediaName = (raw: string) => path.basename(raw).replace(/[^\w.\-()À-ɏ ]/g, '_')
+
+const mediaApiMiddleware: Connect.NextHandleFunction = (req, res: ServerResponse) => {
+  res.setHeader('Content-Type', 'application/json')
+  const url = new URL(req.url ?? '/', 'http://localhost')
+
+  if (req.method === 'GET') {
+    if (!fs.existsSync(MEDIA_DIR)) {
+      res.end('[]')
+      return
+    }
+    const items = fs
+      .readdirSync(MEDIA_DIR)
+      .filter((f) => mediaKind(f))
+      .sort()
+      .map((name) => ({
+        name,
+        url: `/media/${encodeURIComponent(name)}`,
+        kind: mediaKind(name),
+        size: fs.statSync(path.join(MEDIA_DIR, name)).size,
+      }))
+    res.end(JSON.stringify(items))
+  } else if (req.method === 'POST') {
+    const name = sanitizeMediaName(url.searchParams.get('name') ?? '')
+    if (!name || !mediaKind(name)) {
+      res.statusCode = 400
+      res.end('"Nom de fichier manquant ou format non supporté"')
+      return
+    }
+    const chunks: Buffer[] = []
+    req.on('data', (chunk: Buffer) => chunks.push(chunk))
+    req.on('end', () => {
+      fs.mkdirSync(MEDIA_DIR, { recursive: true })
+      fs.writeFileSync(path.join(MEDIA_DIR, name), Buffer.concat(chunks))
+      res.end(JSON.stringify({ name, url: `/media/${encodeURIComponent(name)}` }))
+    })
+  } else if (req.method === 'DELETE') {
+    const name = sanitizeMediaName(decodeURIComponent(url.pathname.replace(/^\//, '')))
+    const file = path.join(MEDIA_DIR, name)
+    if (name && fs.existsSync(file)) fs.unlinkSync(file)
+    res.end('"ok"')
+  } else {
+    res.statusCode = 405
+    res.end('"Method Not Allowed"')
+  }
+}
+
+const mediaFilesMiddleware: Connect.NextHandleFunction = (req, res: ServerResponse, next) => {
+  if (req.method !== 'GET') return next()
+  const name = sanitizeMediaName(decodeURIComponent((req.url ?? '').split('?')[0].replace(/^\//, '')))
+  const file = path.join(MEDIA_DIR, name)
+  if (!name || !fs.existsSync(file)) {
+    res.statusCode = 404
+    res.end()
+    return
+  }
+  res.setHeader('Content-Type', MEDIA_MIME[path.extname(name).toLowerCase()] ?? 'application/octet-stream')
+  fs.createReadStream(file).pipe(res)
+}
+
 // Adresses IP locales, pour construire l'URL à ouvrir depuis la TV/tablette.
 const infoMiddleware: Connect.NextHandleFunction = (_req, res: ServerResponse) => {
   res.setHeader('Content-Type', 'application/json')
@@ -144,6 +232,8 @@ function attachApi(server: ViteDevServer | PreviewServer) {
   server.middlewares.use('/api/events', eventsMiddleware)
   server.middlewares.use('/api/display', displayMiddleware)
   server.middlewares.use('/api/info', infoMiddleware)
+  server.middlewares.use('/api/media', mediaApiMiddleware)
+  server.middlewares.use('/media', mediaFilesMiddleware)
 
   // Heartbeat : les écrans joueurs détectent la perte du serveur.
   const heartbeat = setInterval(() => sseBroadcast({ type: 'PING' }), 5000)

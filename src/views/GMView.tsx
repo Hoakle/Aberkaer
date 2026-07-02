@@ -8,11 +8,25 @@ import PartyPanel from '../components/gm/PartyPanel'
 import DicePanel from '../components/gm/DicePanel'
 import CombatPanel from '../components/gm/CombatPanel'
 import ClocksPanel from '../components/gm/ClocksPanel'
+import MapPanel from '../components/gm/MapPanel'
+import HandoutsPanel from '../components/gm/HandoutsPanel'
+import MediaPanel from '../components/gm/MediaPanel'
 import { useBroadcastReceiver, useBroadcastSender } from '../hooks/useBroadcast'
 import { useAdoptServerDisplay } from '../hooks/useTableSync'
 import { useGMStore } from '../store/gmStore'
 
-type Tab = 'display' | 'party' | 'dice' | 'combat' | 'clocks' | 'npcs' | 'rules' | 'notes'
+type Tab =
+  | 'display'
+  | 'party'
+  | 'dice'
+  | 'combat'
+  | 'clocks'
+  | 'map'
+  | 'handouts'
+  | 'media'
+  | 'npcs'
+  | 'rules'
+  | 'notes'
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'display', label: 'Écran joueurs', icon: '🖥' },
@@ -20,6 +34,9 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'dice', label: 'Dés', icon: '🎲' },
   { id: 'combat', label: 'Combat', icon: '⚔️' },
   { id: 'clocks', label: 'Horloges', icon: '⏳' },
+  { id: 'map', label: 'Carte', icon: '🗺' },
+  { id: 'handouts', label: 'Documents', icon: '📜' },
+  { id: 'media', label: 'Médias', icon: '🎨' },
   { id: 'npcs', label: 'PNJ', icon: '👤' },
   { id: 'rules', label: 'Règles', icon: '📖' },
   { id: 'notes', label: 'Notes', icon: '📝' },
@@ -94,6 +111,9 @@ export default function GMView() {
           {tab === 'dice' && <DicePanel />}
           {tab === 'combat' && <CombatPanel />}
           {tab === 'clocks' && <ClocksPanel />}
+          {tab === 'map' && <MapPanel />}
+          {tab === 'handouts' && <HandoutsPanel />}
+          {tab === 'media' && <MediaPanel />}
           {tab === 'npcs' && <NPCPanel />}
           {tab === 'rules' && <RulesPanel />}
           {tab === 'notes' && <NotesPanel />}

@@ -1,15 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { usePlayerSync } from '../hooks/useTableSync'
+import { useAudioLayers } from '../hooks/useAudioLayers'
 import { useGMStore } from '../store/gmStore'
 import { fmtMod } from '../game/rules'
+import AberkaerMap from '../components/AberkaerMap'
+import Markdown from '../components/Markdown'
 import type { PlayerDisplay, RollResult } from '../types'
 
 export default function PlayerView() {
   const storeDisplay = useGMStore((s) => s.display)
   const [display, setDisplay] = useState<PlayerDisplay>(storeDisplay)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
-  const [audioReady, setAudioReady] = useState(false)
-  const [audioBlocked, setAudioBlocked] = useState(false)
   const [imageError, setImageError] = useState(false)
 
   // Réception des mises à jour : serveur local (multi-appareils) +
@@ -20,56 +20,18 @@ export default function PlayerView() {
     }
   })
 
+  // Ambiance en boucle (crossfade) + effets one-shot
+  const { blocked: audioBlocked, unlock } = useAudioLayers(
+    display.audioUrl,
+    display.audioPlaying,
+    display.audioVolume,
+    display.sfx
+  )
+
   // Reset image error state when the image changes
   useEffect(() => {
     setImageError(false)
   }, [display.imageUrl])
-
-  // Sync audio element when audioUrl changes
-  useEffect(() => {
-    if (!display.audioUrl) return
-    if (!audioRef.current) {
-      audioRef.current = new Audio()
-      audioRef.current.loop = true
-    }
-    if (audioRef.current.src !== display.audioUrl) {
-      audioRef.current.src = display.audioUrl
-      setAudioReady(false)
-      audioRef.current.oncanplay = () => setAudioReady(true)
-    }
-  }, [display.audioUrl])
-
-  const tryPlay = () => {
-    audioRef.current
-      ?.play()
-      .then(() => setAudioBlocked(false))
-      .catch(() => setAudioBlocked(true))
-  }
-
-  // Play/pause
-  useEffect(() => {
-    const audio = audioRef.current
-    if (!audio) return
-    if (display.audioPlaying) {
-      tryPlay()
-    } else {
-      audio.pause()
-    }
-  }, [display.audioPlaying, audioReady])
-
-  // Volume
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = display.audioVolume
-    }
-  }, [display.audioVolume])
-
-  // Cleanup
-  useEffect(() => {
-    return () => {
-      audioRef.current?.pause()
-    }
-  }, [])
 
   const showImage = Boolean(display.imageUrl) && !imageError
 
@@ -88,6 +50,33 @@ export default function PlayerView() {
 
       {/* Vignette overlay */}
       <div className="absolute inset-0 bg-radial from-transparent from-40% to-black/70 pointer-events-none" />
+
+      {/* Carte d'Aberkaer (recouvre la scène) */}
+      {display.map?.visible && (
+        <div className="absolute inset-0 bg-[#0a1622] flex flex-col items-center justify-center p-6">
+          <div className="w-full max-w-5xl">
+            <AberkaerMap pins={display.map.pins} tide={display.map.tide} className="w-full" />
+          </div>
+          <p className="text-stone-500 text-sm mt-2">
+            {display.map.tide === 'basse'
+              ? '🏖 Marée basse — les chemins de vase sont découverts'
+              : '🌊 Marée haute'}
+          </p>
+        </div>
+      )}
+
+      {/* Document remis aux joueurs (parchemin) */}
+      {display.handout && (
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6 sm:p-10">
+          <div className="bg-[#efe3c8] text-stone-900 rounded shadow-2xl max-w-xl w-full max-h-[80vh] overflow-y-auto px-8 py-7 border-4 border-[#d9c69a] font-serif">
+            {display.handout.imageUrl && (
+              <img src={display.handout.imageUrl} alt="" className="w-full rounded mb-4" />
+            )}
+            <h2 className="text-xl font-bold mb-3">{display.handout.title}</h2>
+            <Markdown content={display.handout.content} className="text-[15px]" />
+          </div>
+        </div>
+      )}
 
       {/* Caption (top left) */}
       {display.caption && (
@@ -125,7 +114,7 @@ export default function PlayerView() {
       {/* Autoplay blocked: one tap unlocks audio for the rest of the session */}
       {audioBlocked && display.audioPlaying && display.audioUrl && (
         <button
-          onClick={tryPlay}
+          onClick={unlock}
           className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/70 backdrop-blur-sm border border-amber-800/60 text-amber-300 px-5 py-2.5 rounded-full text-sm hover:bg-black/90 transition-colors"
         >
           🔊 Toucher pour activer le son

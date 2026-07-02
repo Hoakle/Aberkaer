@@ -12,6 +12,9 @@ import type {
   CampaignClock,
   CombatState,
   Combatant,
+  Handout,
+  MapPin,
+  Tide,
 } from '../types'
 
 interface GMStore {
@@ -21,6 +24,9 @@ interface GMStore {
   characters: Character[]
   clocks: CampaignClock[]
   combat: CombatState
+  handouts: Handout[]
+  mapPins: MapPin[]
+  tide: Tide
   display: PlayerDisplay
 
   addNPC: (npc: Omit<NPC, 'id'>) => void
@@ -53,6 +59,15 @@ interface GMStore {
   combatMove: (id: string, dir: -1 | 1) => void
   combatNextTurn: () => void
   combatEnd: () => void
+
+  addHandout: (h: Omit<Handout, 'id'>) => void
+  updateHandout: (id: string, data: Partial<Handout>) => void
+  deleteHandout: (id: string) => void
+
+  addMapPin: (p: Omit<MapPin, 'id'>) => void
+  updateMapPin: (id: string, data: Partial<MapPin>) => void
+  deleteMapPin: (id: string) => void
+  setTide: (tide: Tide) => void
 
   updateDisplay: (data: Partial<PlayerDisplay>) => void
 }
@@ -298,6 +313,20 @@ const defaultClocks: CampaignClock[] = [
 
 const emptyCombat: CombatState = { round: 1, turnIndex: 0, combatants: [] }
 
+// Le premier document de la campagne : la lettre qui lance l'enquête.
+const defaultHandouts: Handout[] = [
+  {
+    id: 'handout-lettre-maren',
+    title: 'Lettre cachetée — sceau des Valdrek',
+    content: `*Lord Edric est mort. Officiellement de maladie. Je ne le crois pas.*
+
+*Venez ce soir à l'arrière-salle de la taverne du Maelstrom, Île des Plaisirs. Venez seuls, et brûlez cette lettre.*
+
+— M.V.`,
+    imageUrl: '',
+  },
+]
+
 export const useGMStore = create<GMStore>()(
   persist(
     (set) => ({
@@ -307,6 +336,9 @@ export const useGMStore = create<GMStore>()(
       characters: [],
       clocks: defaultClocks,
       combat: emptyCombat,
+      handouts: defaultHandouts,
+      mapPins: [],
+      tide: 'haute',
       display: {
         imageUrl: '',
         caption: '',
@@ -317,6 +349,9 @@ export const useGMStore = create<GMStore>()(
         showOverlay: false,
         clocks: [],
         lastRoll: null,
+        sfx: null,
+        handout: null,
+        map: null,
       },
 
       addNPC: (npc) => set((s) => ({ npcs: [...s.npcs, { ...npc, id: uid() }] })),
@@ -429,6 +464,17 @@ export const useGMStore = create<GMStore>()(
         }),
       combatEnd: () => set(() => ({ combat: emptyCombat })),
 
+      addHandout: (h) => set((s) => ({ handouts: [...s.handouts, { ...h, id: uid() }] })),
+      updateHandout: (id, data) =>
+        set((s) => ({ handouts: s.handouts.map((h) => (h.id === id ? { ...h, ...data } : h)) })),
+      deleteHandout: (id) => set((s) => ({ handouts: s.handouts.filter((h) => h.id !== id) })),
+
+      addMapPin: (p) => set((s) => ({ mapPins: [...s.mapPins, { ...p, id: uid() }] })),
+      updateMapPin: (id, data) =>
+        set((s) => ({ mapPins: s.mapPins.map((p) => (p.id === id ? { ...p, ...data } : p)) })),
+      deleteMapPin: (id) => set((s) => ({ mapPins: s.mapPins.filter((p) => p.id !== id) })),
+      setTide: (tide) => set(() => ({ tide })),
+
       updateDisplay: (data) => set((s) => ({ display: { ...s.display, ...data } })),
     }),
     {
@@ -442,6 +488,9 @@ export const useGMStore = create<GMStore>()(
         characters: state.characters,
         clocks: state.clocks,
         combat: state.combat,
+        handouts: state.handouts,
+        mapPins: state.mapPins,
+        tide: state.tide,
       }),
     }
   )

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useGMStore } from '../../store/gmStore'
+import Markdown from '../Markdown'
 import type { SessionNote } from '../../types'
 
 const CATEGORIES: SessionNote['category'][] = ['objectif', 'hook', 'reminder', 'autre']
@@ -89,7 +90,7 @@ export default function NotesPanel() {
                   </span>
                   <span className="text-sm font-medium truncate">{note.title}</span>
                 </div>
-                <p className="text-xs whitespace-pre-wrap opacity-80">{note.content}</p>
+                <Markdown content={note.content} className="text-xs opacity-80" />
               </div>
               <div className="flex gap-1 flex-shrink-0">
                 <button

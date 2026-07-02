@@ -70,6 +70,26 @@ export interface RollResult {
   outcome: 'crit' | 'fumble' | 'success' | 'failure' | 'open'
 }
 
+// ─── Immersion ───────────────────────────────────────────────────────────────
+
+export interface Handout {
+  id: string
+  title: string
+  content: string // Markdown
+  imageUrl: string // optionnel : document-image
+}
+
+export type Tide = 'haute' | 'basse'
+
+export interface MapPin {
+  id: string
+  x: number // coordonnées dans le viewBox de la carte (0-100 / 0-70)
+  y: number
+  label: string
+  note: string // MJ uniquement
+  showToPlayers: boolean
+}
+
 // ─── Écran joueurs ───────────────────────────────────────────────────────────
 
 export interface PlayerClock {
@@ -87,6 +107,12 @@ export interface PlayerDisplay {
   showOverlay: boolean
   clocks: PlayerClock[]
   lastRoll: RollResult | null
+  // Effet sonore one-shot — un nouvel id relance la lecture
+  sfx: { id: string; url: string } | null
+  // Document montré aux joueurs (rendu « parchemin »)
+  handout: { title: string; content: string; imageUrl: string } | null
+  // Carte d'Aberkaer avec les repères visibles des joueurs
+  map: { visible: boolean; tide: Tide; pins: { x: number; y: number; label: string }[] } | null
 }
 
 export type BroadcastMessage =

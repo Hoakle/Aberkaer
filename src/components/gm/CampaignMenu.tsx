@@ -1,6 +1,16 @@
 import { useRef, useState } from 'react'
 import { useGMStore } from '../../store/gmStore'
-import type { NPC, RuleSection, SessionNote, Character, CampaignClock, CombatState } from '../../types'
+import type {
+  NPC,
+  RuleSection,
+  SessionNote,
+  Character,
+  CampaignClock,
+  CombatState,
+  Handout,
+  MapPin,
+  Tide,
+} from '../../types'
 
 interface CampaignExport {
   npcs: NPC[]
@@ -9,6 +19,9 @@ interface CampaignExport {
   characters: Character[]
   clocks: CampaignClock[]
   combat: CombatState
+  handouts: Handout[]
+  mapPins: MapPin[]
+  tide: Tide
 }
 
 // Accepte notre export direct { npcs, rules, notes, ... } mais aussi le format
@@ -31,6 +44,9 @@ function parseCampaignFile(raw: string): CampaignExport | null {
         data.combat && Array.isArray(data.combat.combatants)
           ? data.combat
           : { round: 1, turnIndex: 0, combatants: [] },
+      handouts: Array.isArray(data.handouts) ? data.handouts : [],
+      mapPins: Array.isArray(data.mapPins) ? data.mapPins : [],
+      tide: data.tide === 'basse' ? 'basse' : 'haute',
     }
   } catch {
     return null
@@ -47,10 +63,12 @@ export default function CampaignMenu() {
   }
 
   const exportCampaign = () => {
-    const { npcs, rules, notes, characters, clocks, combat } = useGMStore.getState()
-    const blob = new Blob([JSON.stringify({ npcs, rules, notes, characters, clocks, combat }, null, 2)], {
-      type: 'application/json',
-    })
+    const { npcs, rules, notes, characters, clocks, combat, handouts, mapPins, tide } =
+      useGMStore.getState()
+    const blob = new Blob(
+      [JSON.stringify({ npcs, rules, notes, characters, clocks, combat, handouts, mapPins, tide }, null, 2)],
+      { type: 'application/json' }
+    )
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -76,6 +94,9 @@ export default function CampaignMenu() {
       characters: parsed.characters,
       clocks: parsed.clocks,
       combat: parsed.combat,
+      handouts: parsed.handouts,
+      mapPins: parsed.mapPins,
+      tide: parsed.tide,
     })
     flash('✓ Campagne importée')
   }
